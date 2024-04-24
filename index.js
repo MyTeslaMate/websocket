@@ -5,7 +5,7 @@ const { PubSub } = require('@google-cloud/pubsub');
 const wss = new WebSocket.Server({ port: 8081 });
 
 // Spécifiez le chemin vers votre fichier key.json
-const credentials = process.env.CREDENTIALS;
+const credentials = JSON.parse(process.env.CREDENTIALS);
 const projectId = 'telemetry-420222';
 const subscriptionName = 'subTest';
 
