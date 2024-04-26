@@ -81,7 +81,7 @@ wss.on('connection', function connection(ws, req) {
     }
     ws.send(JSON.stringify({
       msg_type: "control:hello", 
-      connection_timeout: 30000
+      connection_timeout: 600000
     }));
   });
 
