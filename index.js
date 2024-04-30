@@ -25,44 +25,44 @@ function broadcastMessage(message) {
     const jsonData = JSON.parse(message);
     const associativeArray = {};
 
-    // Extract data from JSON event
-    jsonData.data.forEach((item) => {
-      // Check if this is a location
-      if (item.value.locationValue) {
-        associativeArray["Latitude"] = item.value.locationValue.latitude;
-        associativeArray["Longitude"] = item.value.locationValue.longitude;
-      } else {
-        // Else, save stringValue
-        associativeArray[item.key] = item.value.stringValue;
-      }
-    });
-
-    const r = {
-      msg_type: "data:update",
-      tag: jsonData.vin,
-      value: [
-        new Date(jsonData.createdAt).getTime(), //Date.now(), // time
-        associativeArray["VehicleSpeed"] ?? 0, // speed
-        associativeArray["Odometer"], // odometer
-        associativeArray["Soc"], // soc
-        0, // elevation ?
-        associativeArray["GpsHeading"] || 0, // est_heading ?
-        associativeArray["Latitude"], // est_lat
-        associativeArray["Longitude"], // est_lng
-        associativeArray["ACChargingPower"] != "0" ||
-        associativeArray["DCChargingPower"] != "0"
-          ? 1
-          : 0, // power
-        associativeArray["Gear"] ?? 0, // 0 shift_state
-        associativeArray["RatedRange"], // range
-        associativeArray["EstBatteryRange"], // est_range
-        associativeArray["GpsHeading"] || 0, // heading
-      ].join(","),
-    };
-    console.log(r);
-    if (r.tag in tags && tags[r.tag].readyState === WebSocket.OPEN) {
+    if (jsonData.vin in tags && tags[jsonData.vin].readyState === WebSocket.OPEN) {
+      // Extract data from JSON event
+      jsonData.data.forEach((item) => {
+        // Check if this is a location
+        if (item.value.locationValue) {
+          associativeArray["Latitude"] = item.value.locationValue.latitude;
+          associativeArray["Longitude"] = item.value.locationValue.longitude;
+        } else {
+          // Else, save stringValue
+          associativeArray[item.key] = item.value.stringValue;
+        }
+      });
+  
+      const r = {
+        msg_type: "data:update",
+        tag: jsonData.vin,
+        value: [
+          new Date(jsonData.createdAt).getTime(), //Date.now(), // time
+          associativeArray["VehicleSpeed"] ?? 0, // speed
+          associativeArray["Odometer"], // odometer
+          associativeArray["Soc"], // soc
+          0, // elevation ?
+          associativeArray["GpsHeading"] || 0, // est_heading ?
+          associativeArray["Latitude"], // est_lat
+          associativeArray["Longitude"], // est_lng
+          associativeArray["ACChargingPower"] != "0" ||
+          associativeArray["DCChargingPower"] != "0"
+            ? 1
+            : 0, // power
+          associativeArray["Gear"] ?? 0, // 0 shift_state
+          associativeArray["RatedRange"], // range
+          associativeArray["EstBatteryRange"], // est_range
+          associativeArray["GpsHeading"] || 0, // heading
+        ].join(","),
+      };    
       tags[r.tag].send(JSON.stringify(r));
     }
+
   } catch (e) {
     console.error(e);
   }
