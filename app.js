@@ -1,22 +1,15 @@
-//var path = require('path');
-var express = require("express");
-var app = express();
-require("express-ws")(app);
-app.use(express.json());
+const WebSocket = require("ws");
+const { PubSub } = require("@google-cloud/pubsub");
 
-app.get("/", (req, res) => {
-  console.error("express connection");
-  res.status(200).json({ status: "ok" });
-});
+// New WebSocket Server
+const wss = new WebSocket.Server({ port: 8081 });
 
-app.post("/", (req, res) => {
-  let data = req.body.message.data;
-  let buff = new Buffer.from(data, "base64");
-  let message = buff.toString("ascii");
+const credentials = JSON.parse(process.env.CREDENTIALS);
+const projectId = process.env.PROJECT_ID;
+const subscriptionName = process.env.SUBSCRIPTION_NAME;
 
-  broadcastMessage(message);
-  res.status(200).json({ status: "ok" });
-});
+// Pub/Sub instance using key.json
+const pubsub = new PubSub({ projectId, credentials });
 
 // Save ws associated with each tag
 let tags = {};
@@ -61,16 +54,23 @@ function broadcastMessage(message) {
       ].join(","),
     };
     console.log(r);
-    if (r.tag in tags && tags[r.tag].readyState === WebSocket.OPEN) {
-      tags[r.tag].send(JSON.stringify(r));
-    }
+
+    wss.clients.forEach(function each(client) {
+      if (
+        tags[r.tag] &&
+        client == tags[r.tag] &&
+        client.readyState === WebSocket.OPEN
+      ) {
+        client.send(JSON.stringify(r));
+      }
+    });
   } catch (e) {
     console.error(e);
   }
 }
 
-app.ws("/", (ws /*, req*/) => {
-  console.log("New connection");
+wss.on("connection", function connection(ws /*, req*/) {
+  console.log('New connection');
 
   const interval_id = setInterval(function () {
     ws.send(
@@ -83,23 +83,20 @@ app.ws("/", (ws /*, req*/) => {
 
   ws.on("message", function incoming(message) {
     console.log("Get message: %s", message);
-    
+    ws.send(
+      JSON.stringify({
+        msg_type: "control:hello",
+        connection_timeout: 30000,
+      }),
+    );
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
       tags[js.tag] = ws;
-
-      ws.send(
-        JSON.stringify({
-          msg_type: "control:hello",
-          connection_timeout: 30000,
-        }),
-      );
     }
-
   });
 
   ws.once("close", function close() {
-    console.log("Close connection");
+    console.log('Close connection');
     clearInterval(interval_id);
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
@@ -110,4 +107,9 @@ app.ws("/", (ws /*, req*/) => {
   });
 });
 
-app.listen(8081, () => console.log("listening on http://localhost:8081/"));
+// Listen Pub/Sub message
+pubsub.subscription(subscriptionName).on("message", (message) => {
+  // Send received message to connected and eligible websocket client
+  broadcastMessage(message.data.toString("utf-8"));
+  message.ack();
+});
