@@ -20,6 +20,48 @@ app.post("/", (req, res) => {
 // Save ws associated with each tag
 let tags = {};
 
+app.ws("/streaming/", (ws /*, req*/) => {
+  console.log("New connection");
+
+  const interval_id = setInterval(function () {
+    ws.send(
+      JSON.stringify({
+        msg_type: "control:hello",
+        connection_timeout: 30000,
+      }),
+    );
+  }, 10000);
+
+  ws.on("message", function incoming(message) {
+    console.log("Get message: %s", message);
+    
+    const js = JSON.parse(message);
+    if (js.msg_type == "data:subscribe_oauth") {
+      tags[js.tag] = ws;
+
+      ws.send(
+        JSON.stringify({
+          msg_type: "control:hello",
+          connection_timeout: 30000,
+        }),
+      );
+    }
+
+  });
+
+  ws.once("close", function close() {
+    console.log("Close connection");
+    clearInterval(interval_id);
+    let keys = Object.keys(tags);
+    for (let i = 0; i < keys.length; i++) {
+      if (this == tags[keys[i]]) {
+        delete tags[keys[i]];
+      }
+    }
+  });
+});
+
+
 function broadcastMessage(message) {
   try {
     console.log(message);
@@ -69,45 +111,5 @@ function broadcastMessage(message) {
   }
 }
 
-app.ws("/streaming/", (ws /*, req*/) => {
-  console.log("New connection");
-
-  const interval_id = setInterval(function () {
-    ws.send(
-      JSON.stringify({
-        msg_type: "control:hello",
-        connection_timeout: 30000,
-      }),
-    );
-  }, 10000);
-
-  ws.on("message", function incoming(message) {
-    console.log("Get message: %s", message);
-    
-    const js = JSON.parse(message);
-    if (js.msg_type == "data:subscribe_oauth") {
-      tags[js.tag] = ws;
-
-      ws.send(
-        JSON.stringify({
-          msg_type: "control:hello",
-          connection_timeout: 30000,
-        }),
-      );
-    }
-
-  });
-
-  ws.once("close", function close() {
-    console.log("Close connection");
-    clearInterval(interval_id);
-    let keys = Object.keys(tags);
-    for (let i = 0; i < keys.length; i++) {
-      if (this == tags[keys[i]]) {
-        delete tags[keys[i]];
-      }
-    }
-  });
-});
 
 app.listen(8081, () => console.log("listening on http://localhost:8081/"));
