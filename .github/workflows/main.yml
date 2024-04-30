@@ -13,7 +13,7 @@ jobs:
           curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
           chmod +x /usr/local/bin/argocd
       - name: Login to ArgoCD
-        run: argocd login argocd.internal.myteslamate.com --insecure --username github_action --password ${{ secrets.ARGOCD_TOKEN }}
+        run: argocd login argocd.internal.myteslamate.com --insecure --username github_action_global --password ${{ secrets.ARGOCD_TOKEN }}
       - name: 🚀 Deploy WebSocket for MyTeslaMate
         run: argocd app sync websocket --prune
 
