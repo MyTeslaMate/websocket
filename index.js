@@ -5,7 +5,6 @@ require("express-ws")(app);
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  console.error("express connection");
   res.status(200).json({ status: "ok" });
 });
 
