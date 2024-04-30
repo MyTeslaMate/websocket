@@ -11,6 +11,7 @@ const subscriptionName = process.env.SUBSCRIPTION_NAME;
 // Pub/Sub instance using key.json
 const pubsub = new PubSub({ projectId, credentials });
 
+// Save ws associated with each tag
 let tags = {};
 
 function broadcastMessage(message) {
@@ -18,7 +19,7 @@ function broadcastMessage(message) {
     const jsonData = JSON.parse(message);
     const associativeArray = {};
 
-    // Extract data from streaminf
+    // Extract data from JSON event
     jsonData.data.forEach((item) => {
       // Check if this is a location
       if (item.value.locationValue) {
