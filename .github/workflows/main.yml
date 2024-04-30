@@ -15,5 +15,5 @@ jobs:
       - name: Login to ArgoCD
         run: argocd login argocd.internal.myteslamate.com --insecure --username github_action_global --password ${{ secrets.ARGOCD_TOKEN }}
       - name: 🚀 Deploy WebSocket for MyTeslaMate
-        run: argocd app sync websocket --prune
+        run: argocd app actions run websocket restart --kind Deployment
 
