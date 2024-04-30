@@ -69,9 +69,7 @@ function broadcastMessage(message) {
 }
 
 wss.on("connection", function connection(ws /*, req*/) {
-  /*ws.on('open', function incoming(open) {
-    //console.log('Open : %s', message);
-  });*/
+  console.log('New connection');
 
   const interval_id = setInterval(function () {
     ws.send(
@@ -83,7 +81,7 @@ wss.on("connection", function connection(ws /*, req*/) {
   }, 10000);
 
   ws.on("message", function incoming(message) {
-    console.log("Data : %s", message);
+    console.log("Get message: %s", message);
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
       tags[js.tag] = ws;
@@ -91,6 +89,7 @@ wss.on("connection", function connection(ws /*, req*/) {
   });
 
   ws.once("close", function close() {
+    console.log('Close connection');
     clearInterval(interval_id);
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
