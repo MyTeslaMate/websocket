@@ -68,7 +68,7 @@ function broadcastMessage(message) {
   }
 }
 
-app.ws("/", (ws /*, req*/) => {
+app.ws("/streaming/", (ws /*, req*/) => {
   console.log("New connection");
 
   const interval_id = setInterval(function () {
