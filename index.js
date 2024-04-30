@@ -22,6 +22,7 @@ let tags = {};
 
 function broadcastMessage(message) {
   try {
+    console.log(message);
     const jsonData = JSON.parse(message);
     const associativeArray = {};
 
