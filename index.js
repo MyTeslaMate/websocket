@@ -34,7 +34,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
 
   ws.on("message", function incoming(message) {
     console.log("Get message: %s", message);
-    
+
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
       tags[js.tag] = ws;
@@ -46,7 +46,6 @@ app.ws("/streaming/", (ws /*, req*/) => {
         }),
       );
     }
-
   });
 
   ws.once("close", function close() {
@@ -61,13 +60,11 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-
 function broadcastMessage(message) {
   try {
-    console.log(message);
     const jsonData = JSON.parse(message);
     const associativeArray = {};
-  
+
     // Extract data from JSON event
     jsonData.data.forEach((item) => {
       // Check if this is a location
@@ -101,15 +98,17 @@ function broadcastMessage(message) {
         associativeArray["EstBatteryRange"], // est_range
         associativeArray["GpsHeading"] || 0, // heading
       ].join(","),
-    };   
-    if (jsonData.vin in tags && tags[jsonData.vin].readyState === WebSocket.OPEN) { 
+    };
+    console.log(r);
+    if (
+      jsonData.vin in tags &&
+      tags[jsonData.vin].readyState === WebSocket.OPEN
+    ) {
       tags[r.tag].send(JSON.stringify(r));
     }
-
   } catch (e) {
     console.error(e);
   }
 }
-
 
 app.listen(8081, () => console.log("listening on http://localhost:8081/"));

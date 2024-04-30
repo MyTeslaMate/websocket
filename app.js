@@ -70,7 +70,7 @@ function broadcastMessage(message) {
 }
 
 wss.on("connection", function connection(ws /*, req*/) {
-  console.log('New connection');
+  console.log("New connection");
 
   const interval_id = setInterval(function () {
     ws.send(
@@ -96,7 +96,7 @@ wss.on("connection", function connection(ws /*, req*/) {
   });
 
   ws.once("close", function close() {
-    console.log('Close connection');
+    console.log("Close connection");
     clearInterval(interval_id);
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
