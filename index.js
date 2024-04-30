@@ -83,6 +83,12 @@ wss.on("connection", function connection(ws /*, req*/) {
 
   ws.on("message", function incoming(message) {
     console.log("Get message: %s", message);
+    ws.send(
+      JSON.stringify({
+        msg_type: "control:hello",
+        connection_timeout: 30000,
+      }),
+    );
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
       tags[js.tag] = ws;
