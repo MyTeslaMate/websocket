@@ -1,60 +1,65 @@
-const WebSocket = require('ws');
-const { PubSub } = require('@google-cloud/pubsub');
+const WebSocket = require("ws");
+const { PubSub } = require("@google-cloud/pubsub");
 
-// Création du serveur WebSocket
+// New WebSocket Server
 const wss = new WebSocket.Server({ port: 8081 });
 
-// Spécifiez le chemin vers votre fichier key.json
 const credentials = JSON.parse(process.env.CREDENTIALS);
-const projectId = 'telemetry-420222';
-const subscriptionName = 'subTest';
+const projectId = process.env.PROJECT_ID;
+const subscriptionName = process.env.SUBSCRIPTION_NAME;
 
-// Créez une instance Pub/Sub en utilisant le fichier key.json
+// Pub/Sub instance using key.json
 const pubsub = new PubSub({ projectId, credentials });
 
 let tags = {};
-// Fonction pour envoyer un message à tous les clients WebSocket connectés
+
 function broadcastMessage(message) {
   try {
     const jsonData = JSON.parse(message);
     const associativeArray = {};
-  
-    // Itérer sur les données pour extraire les clés et les valeurs
-    jsonData.data.forEach(item => {
-      // Vérifier si la valeur est un objet locationValue
+
+    // Extract data from streaminf
+    jsonData.data.forEach((item) => {
+      // Check if this is a location
       if (item.value.locationValue) {
-          // Si oui, enregistrer l'objet locationValue directement
-          associativeArray['Latitude'] = item.value.locationValue.latitude;
-          associativeArray['Longitude'] = item.value.locationValue.longitude;
+        associativeArray["Latitude"] = item.value.locationValue.latitude;
+        associativeArray["Longitude"] = item.value.locationValue.longitude;
       } else {
-          // Sinon, enregistrer la valeur stringValue
-          associativeArray[item.key] = item.value.stringValue;
+        // Else, save stringValue
+        associativeArray[item.key] = item.value.stringValue;
       }
     });
-  
+
     const r = {
-      msg_type: "data:update", 
+      msg_type: "data:update",
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(), //Date.now(), // time
-        associativeArray['VehicleSpeed'] ?? 0, // speed 
-        associativeArray['Odometer'], // odometer 
-        associativeArray['Soc'], // soc
-        0,  // elevation ?
-        associativeArray['GpsHeading'] || 0, // est_heading ?
-        associativeArray['Latitude'], // est_lat
-        associativeArray['Longitude'], // est_lng
-        (associativeArray['ACChargingPower'] != '0' || associativeArray['DCChargingPower'] != '0') ? 1 : 0, // power 
-        associativeArray['Gear'] ?? 0, // 0 shift_state 
-        associativeArray['RatedRange'], // range 
-        associativeArray['EstBatteryRange'], // est_range
-        associativeArray['GpsHeading'] || 0 // heading
-      ].join(',')
+        associativeArray["VehicleSpeed"] ?? 0, // speed
+        associativeArray["Odometer"], // odometer
+        associativeArray["Soc"], // soc
+        0, // elevation ?
+        associativeArray["GpsHeading"] || 0, // est_heading ?
+        associativeArray["Latitude"], // est_lat
+        associativeArray["Longitude"], // est_lng
+        associativeArray["ACChargingPower"] != "0" ||
+        associativeArray["DCChargingPower"] != "0"
+          ? 1
+          : 0, // power
+        associativeArray["Gear"] ?? 0, // 0 shift_state
+        associativeArray["RatedRange"], // range
+        associativeArray["EstBatteryRange"], // est_range
+        associativeArray["GpsHeading"] || 0, // heading
+      ].join(","),
     };
     console.log(r);
-  
+
     wss.clients.forEach(function each(client) {
-      if (tags[r.tag] && client == tags[r.tag] && client.readyState === WebSocket.OPEN) {
+      if (
+        tags[r.tag] &&
+        client == tags[r.tag] &&
+        client.readyState === WebSocket.OPEN
+      ) {
         client.send(JSON.stringify(r));
       }
     });
@@ -63,33 +68,31 @@ function broadcastMessage(message) {
   }
 }
 
-// Écoute des connexions entrantes
-wss.on('connection', function connection(ws, req) {
-  console.log('Nouvelle connexion établie.');
+wss.on("connection", function connection(ws /*, req*/) {
+  //console.log('New connection');
 
-  // Écouter le message contenant le nom du client
-  ws.on('open', function incoming(open) {
-    console.log('Open : %s', message);
-  });
+  /*ws.on('open', function incoming(open) {
+    //console.log('Open : %s', message);
+  });*/
 
-  // Écouter le message contenant le nom du client
-  ws.on('message', function incoming(message) {
-    console.log('Data : %s', message);
+  ws.on("message", function incoming(message) {
+    console.log("Data : %s", message);
     const js = JSON.parse(message);
-    if(js.msg_type == 'data:subscribe_oauth') {
+    if (js.msg_type == "data:subscribe_oauth") {
       tags[js.tag] = ws;
     }
-    ws.send(JSON.stringify({
-      msg_type: "control:hello", 
-      connection_timeout: 600000
-    }));
+    ws.send(
+      JSON.stringify({
+        msg_type: "control:hello",
+        connection_timeout: 600000,
+      }),
+    );
   });
 
-  // Gérer la fermeture de la connexion
-  ws.on('close', function close() {
-    console.log('Connexion fermée.');
+  ws.on("close", function close() {
+    //console.log('Close');
     let keys = Object.keys(tags);
-    for (i = 0; i < keys.length; i++) {
+    for (let i = 0; i < keys.length; i++) {
       if (this == tags[keys[i]]) {
         delete tags[keys[i]];
       }
@@ -97,11 +100,9 @@ wss.on('connection', function connection(ws, req) {
   });
 });
 
-// Écouter les messages Pub/Sub
-pubsub
-  .subscription(subscriptionName)
-  .on('message', (message) => {
-    // Envoyer le message reçu à tous les clients WebSocket connectés
-    broadcastMessage(message.data.toString('utf-8'));
-    message.ack();
-  });
+// Listen Pub/Sub message
+pubsub.subscription(subscriptionName).on("message", (message) => {
+  // Send received message to connected and eligible websocket client
+  broadcastMessage(message.data.toString("utf-8"));
+  message.ack();
+});
