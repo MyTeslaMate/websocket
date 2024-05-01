@@ -1,5 +1,6 @@
 //var path = require('path');
 var express = require("express");
+const { WebSocket } = require("ws");
 var app = express();
 require("express-ws")(app);
 app.use(express.json());
