@@ -102,9 +102,10 @@ function broadcastMessage(message) {
     };
     console.log(r);
     if (
-      jsonData.vin in tags &&
-      tags[jsonData.vin].readyState === WebSocket.OPEN
+      r.tag in tags &&
+      tags[r.tag].readyState === WebSocket.OPEN
     ) {
+      console.log('Send to client ' + r.tag);
       tags[r.tag].send(JSON.stringify(r));
     }
   } catch (e) {
