@@ -21,8 +21,7 @@ app.post("/", (req, res) => {
 let tags = {};
 
 app.ws("/streaming/", (ws /*, req*/) => {
-  console.log("New connection");
-
+  /** Say hello to TeslaMate */
   const interval_id = setInterval(function () {
     ws.send(
       JSON.stringify({
@@ -32,6 +31,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     );
   }, 10000);
 
+  /** Subscribe to vehicle streaming data */
   ws.on("message", function incoming(message) {
     console.log("Get message: %s", message);
 
@@ -48,6 +48,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     }
   });
 
+  /** Delete connection when closed */
   ws.once("close", function close() {
     console.log("Close connection");
     clearInterval(interval_id);
@@ -60,6 +61,10 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
+/**
+ * Forward a message from Tesla Telemetry to the websocket streaming client(s)
+ * @param {*} message
+ */
 function broadcastMessage(message) {
   try {
     const jsonData = JSON.parse(message);
@@ -75,6 +80,7 @@ function broadcastMessage(message) {
       }
     });
 
+    /** Prepare message for TeslaMate */
     const r = {
       msg_type: "data:update",
       tag: jsonData.vin,
@@ -83,8 +89,8 @@ function broadcastMessage(message) {
         associativeArray["VehicleSpeed"] ?? 0, // speed
         associativeArray["Odometer"], // odometer
         associativeArray["Soc"], // soc
-        0, // elevation ?
-        associativeArray["GpsHeading"] || 0, // est_heading ?
+        0, // elevation (not available)
+        associativeArray["GpsHeading"] || 0, // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
         0, // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
@@ -94,12 +100,9 @@ function broadcastMessage(message) {
         associativeArray["GpsHeading"] || 0, // heading
       ].join(","),
     };
-    console.log(r);
-    if (
-      r.tag in tags &&
-      tags[r.tag].readyState === WebSocket.OPEN
-    ) {
-      console.log('Send to client ' + r.tag);
+
+    if (r.tag in tags && tags[r.tag].readyState === WebSocket.OPEN) {
+      console.log("Send to client " + r.tag);
       tags[r.tag].send(JSON.stringify(r));
     }
   } catch (e) {
