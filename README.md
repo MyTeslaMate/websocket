@@ -1,13 +1,13 @@
-# Websocket server to reproduce old streaming API with new Tesla Telemetry events
+# Tesla Streaming from official Telemetry events
 
-Create an express server with :
+This application contains an express server with :
 
-- a route used in a GCP Pub/Sub to receive Telemtry event
-- a websocket server listening on /streaming
+- a route used in a GCP Pub/Sub to receive Telemetry event
+- a websocket server listening on /streaming which send Telemetry event to client.
 
-## TeslaMate usage
+## Usage
 
-A Teslamate instance can use this websocket server as streaming source.
+A Teslamate instance can use this WSS as streaming source.
 
 ## Limitations
 
