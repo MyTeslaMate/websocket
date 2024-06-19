@@ -1,4 +1,3 @@
-//var path = require('path');
 var express = require("express");
 const { WebSocket } = require("ws");
 var app = express();
@@ -68,12 +67,10 @@ function broadcastMessage(message) {
 
     // Extract data from JSON event
     jsonData.data.forEach((item) => {
-      // Check if this is a location
       if (item.value.locationValue) {
         associativeArray["Latitude"] = item.value.locationValue.latitude;
         associativeArray["Longitude"] = item.value.locationValue.longitude;
       } else {
-        // Else, save stringValue
         associativeArray[item.key] = item.value.stringValue;
       }
     });
@@ -82,7 +79,7 @@ function broadcastMessage(message) {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
-        new Date(jsonData.createdAt).getTime(), //Date.now(), // time
+        new Date(jsonData.createdAt).getTime(),
         associativeArray["VehicleSpeed"] ?? 0, // speed
         associativeArray["Odometer"], // odometer
         associativeArray["Soc"], // soc
@@ -90,10 +87,7 @@ function broadcastMessage(message) {
         associativeArray["GpsHeading"] || 0, // est_heading ?
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
-        associativeArray["ACChargingPower"] != "0" ||
-        associativeArray["DCChargingPower"] != "0"
-          ? 1
-          : 0, // power
+        0, // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
         associativeArray["Gear"] ?? 0, // 0 shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
