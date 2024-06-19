@@ -2,8 +2,8 @@
 
 This application contains an express server with :
 
-- a route used in a GCP Pub/Sub to receive Telemetry event
-- a websocket server listening on /streaming which send Telemetry event to client.
+- a route to receive Tesla Telemetry events
+- a websocket server which forward Telemetry events to connected clients
 
 ## Usage
 
