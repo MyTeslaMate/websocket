@@ -33,10 +33,10 @@ app.ws("/streaming/", (ws /*, req*/) => {
 
   /** Subscribe to vehicle streaming data */
   ws.on("message", function incoming(message) {
-    console.log("Get message: %s", message);
-
+    
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
+      console.log("Subscribe from: %s", js.tag);
       tags[js.tag] = ws;
 
       ws.send(
@@ -103,6 +103,7 @@ function broadcastMessage(message) {
 
     if (r.tag in tags && tags[r.tag].readyState === WebSocket.OPEN) {
       console.log("Send to client " + r.tag);
+      console.log(JSON.stringify(r));
       tags[r.tag].send(JSON.stringify(r));
     }
   } catch (e) {
