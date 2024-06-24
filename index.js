@@ -16,9 +16,10 @@ app.get("/list", (req, res) => {
 });
 
 app.get("/send", (req, res) => {
-  let message = req.query.msg ? JSON.parse('{"msg_type":"data:update","tag":"LRWYGCFS3PC713585","value":"'+Date.now() + ',' + req.query.msg + '"}') : {"msg_type":"data:update","tag":"LRWYGCFS3PC713585","value":Date.now() + ",0,22298.932,87.296,0,57.165,43.529008,1.568007,0,0,219.651,209.119,57.165"};
-  //Date.now();
-  broadcastMessage(message);
+  if (req.query.msg && req.query.tag) {
+    let message = JSON.parse('{"msg_type":"data:update","tag":"'+req.query.tag+'","value":"'+Date.now() + ',' + req.query.msg + '"}');
+    broadcastMessage(message);
+  }
   res.status(200).json({ status: "ok" });
 });
 
@@ -99,18 +100,18 @@ function transformMessage(data) {
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        associativeArray["VehicleSpeed"] ?? 0, // speed
+        parseInt(associativeArray["VehicleSpeed"]) ?? 0, // speed
         associativeArray["Odometer"], // odometer
-        associativeArray["Soc"], // soc
-        0, // elevation (not available)
-        associativeArray["GpsHeading"] || 0, // est_heading (TODO: is this the good field?)
+        parseInt(associativeArray["Soc"]), // soc
+        '', // elevation (not available)
+        associativeArray["GpsHeading"] || '', // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
         0, // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
-        associativeArray["Gear"] ?? 0, // 0 shift_state
+        associativeArray["Gear"] ?? '', // 0 shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
-        associativeArray["GpsHeading"] || 0, // heading
+        associativeArray["GpsHeading"] || '', // heading
       ].join(","),
     };
 
