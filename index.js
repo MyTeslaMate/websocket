@@ -12,7 +12,7 @@ app.get("/", (req, res) => {
 });
 
 app.get("/list", (req, res) => {
-  res.status(200).json(tags);
+  res.status(200).json(tags.keys());
 });
 
 app.get("/send", (req, res) => {
