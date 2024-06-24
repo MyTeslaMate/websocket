@@ -23,7 +23,7 @@ app.get("/send", (req, res) => {
 });
 
 app.post("/", (req, res) => {
-  let buff = new Buffer.from(messageData, "base64");
+  let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
   let message = transformMessage(data);
   broadcastMessage(message);
