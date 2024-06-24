@@ -4,21 +4,31 @@ var app = express();
 require("express-ws")(app);
 app.use(express.json());
 
+// Save ws associated with each tag
+let tags = {};
+
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.post("/", (req, res) => {
-  let data = req.body.message.data;
-  let buff = new Buffer.from(data, "base64");
-  let message = buff.toString("ascii");
+app.get("/list", (req, res) => {
+  res.status(200).json(tags);
+});
 
+app.get("/send", (req, res) => {
+  let message = req.query.msg ? JSON.parse('{"msg_type":"data:update","tag":"LRWYGCFS3PC713585","value":"'+Date.now() + ',' + req.query.msg + '"}') : {"msg_type":"data:update","tag":"LRWYGCFS3PC713585","value":Date.now() + ",0,22298.932,87.296,0,57.165,43.529008,1.568007,0,0,219.651,209.119,57.165"};
+  //Date.now();
   broadcastMessage(message);
   res.status(200).json({ status: "ok" });
 });
 
-// Save ws associated with each tag
-let tags = {};
+app.post("/", (req, res) => {
+  let buff = new Buffer.from(messageData, "base64");
+  let data = buff.toString("ascii");
+  let message = transformMessage(data);
+  broadcastMessage(message);
+  res.status(200).json({ status: "ok" });
+});
 
 app.ws("/streaming/", (ws /*, req*/) => {
   /** Say hello to TeslaMate */
@@ -55,19 +65,22 @@ app.ws("/streaming/", (ws /*, req*/) => {
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
       if (this == tags[keys[i]]) {
+        console.log("Close connection from: " + keys[i]);
         delete tags[keys[i]];
       }
     }
   });
 });
 
+
 /**
- * Forward a message from Tesla Telemetry to the websocket streaming client(s)
- * @param {*} message
+ * Transform a message from Tesla Telemetry to a websocket streaming message
+ * @param {*} data 
+ * @returns 
  */
-function broadcastMessage(message) {
+function transformMessage(data) {
   try {
-    const jsonData = JSON.parse(message);
+    const jsonData = JSON.parse(data);
     const associativeArray = {};
 
     // Extract data from JSON event
@@ -101,10 +114,22 @@ function broadcastMessage(message) {
       ].join(","),
     };
 
-    if (r.tag in tags && tags[r.tag].readyState === WebSocket.OPEN) {
+    return r;
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+    /**
+ * Forward a message from Tesla Telemetry to the websocket streaming client(s)
+ * @param {*} message
+ */
+function broadcastMessage(msg) {
+  try {
+    if (msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
       console.log("Send to client " + r.tag);
-      console.log(JSON.stringify(r));
-      tags[r.tag].send(JSON.stringify(r));
+      console.log(JSON.stringify(msg));
+      tags[msg.tag].send(JSON.stringify(msg));
     }
   } catch (e) {
     console.error(e);
