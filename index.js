@@ -99,10 +99,10 @@ function transformMessage(data) {
     if (associativeArray["Gear"]) {
       power = 0;  // wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     }
-    if (associativeArray["DCChargingPower"]) {
+    if (associativeArray["DCChargingPower"] > 0) {
       power = parseInt(associativeArray["DCChargingPower"]);
     }
-    if (associativeArray["ACChargingPower"]) {
+    if (associativeArray["ACChargingPower"] > 0) {
       power = parseInt(associativeArray["ACChargingPower"]);
     }
 
