@@ -128,7 +128,7 @@ function transformMessage(data) {
 function broadcastMessage(msg) {
   try {
     if (msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
-      console.log("Send to client " + r.tag);
+      console.log("Send to client " + msg.tag);
       console.log(JSON.stringify(msg));
       tags[msg.tag].send(JSON.stringify(msg));
     }
