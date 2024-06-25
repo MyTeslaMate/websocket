@@ -11,17 +11,19 @@ app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.get("/list", (req, res) => {
-  res.status(200).json(Object.keys(tags));
-});
 
 app.get("/send", (req, res) => {
   if (req.query.msg && req.query.tag) {
     let message = JSON.parse('{"msg_type":"data:update","tag":"'+req.query.tag+'","value":"'+Date.now() + ',' + req.query.msg + '"}');
     broadcastMessage(message);
   }
+  if (req.query.offline && req.query.tag) {
+    let message = JSON.parse('{"msg_type": "data:error", "tag": "'+req.query.tag+'", "error_type": "vehicle_error", "value": "Vehicle is offline"}');
+    broadcastMessage(message);
+  }
   res.status(200).json({ status: "ok" });
 });
+
 
 app.post("/", (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
