@@ -111,7 +111,7 @@ function transformMessage(data) {
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        parseInt(associativeArray["VehicleSpeed"]) || '', // speed
+        isNaN(parseInt(associativeArray["VehicleSpeed"])) ? '' : parseInt(associativeArray["VehicleSpeed"]), // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
         '', // elevation (not available)
