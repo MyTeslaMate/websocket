@@ -95,6 +95,17 @@ function transformMessage(data) {
     });
 
     /** Prepare message for TeslaMate */
+    let power = '';
+    if (associativeArray["Gear"]) {
+      power = 0;  // wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+    }
+    if (associativeArray["DCChargingPower"]) {
+      power = parseInt(associativeArray["DCChargingPower"]);
+    }
+    if (associativeArray["ACChargingPower"]) {
+      power = parseInt(associativeArray["ACChargingPower"]);
+    }
+
     const r = {
       msg_type: "data:update",
       tag: jsonData.vin,
@@ -107,7 +118,7 @@ function transformMessage(data) {
         associativeArray["GpsHeading"] ?? '', // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
-        associativeArray["Gear"] ? 0 : '', // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+        power, // power
         associativeArray["Gear"] ?? '', // 0 shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
