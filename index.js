@@ -107,7 +107,7 @@ function transformMessage(data) {
         associativeArray["GpsHeading"] ?? '', // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
-        0, // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+        associativeArray["Gear"] ? 0 : '', // power (wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
         associativeArray["Gear"] ?? '', // 0 shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
