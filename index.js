@@ -21,6 +21,10 @@ app.get("/send", (req, res) => {
     let message = JSON.parse('{"msg_type": "data:error", "tag": "'+req.query.tag+'", "error_type": "vehicle_error", "value": "Vehicle is offline"}');
     broadcastMessage(message);
   }
+  if (req.query.disconnect && req.query.tag) {
+    let message = JSON.parse('{"msg_type": "data:error", "tag": "'+req.query.tag+'", "error_type": "vehicle_disconnected"}');
+    broadcastMessage(message);
+  }
   res.status(200).json({ status: "ok" });
 });
 
@@ -108,7 +112,15 @@ function transformMessage(data) {
       power = parseInt(associativeArray["ACChargingPower"]);
     }
 
-    const r = {
+    if (!associativeArray["Gear"]) {
+      return {
+        msg_type: "data:error", 
+        tag: jsonData.vin, 
+        error_type: "vehicle_disconnected"
+      }
+    }
+
+    return {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
@@ -128,7 +140,6 @@ function transformMessage(data) {
       ].join(","),
     };
 
-    return r;
   } catch (e) {
     console.error(e);
   }
