@@ -88,6 +88,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
 function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
+    console.log(jsonData);
     const associativeArray = {};
 
     // Extract data from JSON event
