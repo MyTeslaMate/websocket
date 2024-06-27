@@ -102,17 +102,20 @@ function transformMessage(data) {
 
     /** Prepare message for TeslaMate */
     let power = '';
+    let isCharging = false;
     if (associativeArray["Gear"]) {
       power = 0;  // wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     }
     if (associativeArray["DCChargingPower"] > 0) {
       power = parseInt(associativeArray["DCChargingPower"]);
+      isCharging = true;
     }
     if (associativeArray["ACChargingPower"] > 0) {
       power = parseInt(associativeArray["ACChargingPower"]);
+      isCharging = true;
     }
 
-    if (!associativeArray["Gear"]) {
+    if (!associativeArray["Gear"] && !isCharging) {
       return {
         msg_type: "data:error", 
         tag: jsonData.vin, 
