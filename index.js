@@ -116,15 +116,7 @@ function transformMessage(data) {
       isCharging = true;
     }
 
-    if (!associativeArray["Gear"] && !isCharging) {
-      return {
-        msg_type: "data:error", 
-        tag: jsonData.vin, 
-        error_type: "vehicle_disconnected"
-      }
-    }
-
-    return {
+    const r = {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
@@ -143,7 +135,18 @@ function transformMessage(data) {
         associativeArray["GpsHeading"] ?? '', // heading
       ].join(","),
     };
+    
+    console.log(r);
 
+    if (!associativeArray["Gear"] && !isCharging) {
+      return {
+        msg_type: "data:error", 
+        tag: jsonData.vin, 
+        error_type: "vehicle_disconnected"
+      }
+    }
+
+    return r;
   } catch (e) {
     console.error(e);
   }
