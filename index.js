@@ -138,14 +138,14 @@ function transformMessage(data) {
     
     //console.log(r);
 
-    if (!associativeArray["Gear"] && !isCharging) {
+    /*if (!associativeArray["Gear"] && !isCharging) {
       console.log(r);
       return {
         msg_type: "data:error", 
         tag: jsonData.vin, 
         error_type: "vehicle_disconnected"
       }
-    }
+    }*/
 
     return r;
   } catch (e) {
