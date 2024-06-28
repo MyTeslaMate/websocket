@@ -139,14 +139,15 @@ function transformMessage(data) {
     //console.log(r);
 
     if (!associativeArray["Gear"] && !isCharging) {
-      console.log(jsonData);
-      /*console.log(r);
+      //console.log(jsonData);
+      //console.log(r);
       return {
         msg_type: "data:error", 
         tag: jsonData.vin, 
-        error_type: "vehicle_disconnected"
+        error_type: "vehicle_error",
+        value: "Vehicle is offline"
       }
-      */
+      
     }
 
     return r;
