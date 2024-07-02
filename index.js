@@ -11,23 +11,37 @@ app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-
 app.get("/send", (req, res) => {
   if (req.query.msg && req.query.tag) {
-    let message = JSON.parse('{"msg_type":"data:update","tag":"'+req.query.tag+'","value":"'+Date.now() + ',' + req.query.msg + '"}');
+    let message = JSON.parse(
+      '{"msg_type":"data:update","tag":"' +
+        req.query.tag +
+        '","value":"' +
+        Date.now() +
+        "," +
+        req.query.msg +
+        '"}',
+    );
     broadcastMessage(message);
   }
   if (req.query.offline && req.query.tag) {
-    let message = JSON.parse('{"msg_type": "data:error", "tag": "'+req.query.tag+'", "error_type": "vehicle_error", "value": "Vehicle is offline"}');
+    let message = JSON.parse(
+      '{"msg_type": "data:error", "tag": "' +
+        req.query.tag +
+        '", "error_type": "vehicle_error", "value": "Vehicle is offline"}',
+    );
     broadcastMessage(message);
   }
   if (req.query.disconnect && req.query.tag) {
-    let message = JSON.parse('{"msg_type": "data:error", "tag": "'+req.query.tag+'", "error_type": "vehicle_disconnected"}');
+    let message = JSON.parse(
+      '{"msg_type": "data:error", "tag": "' +
+        req.query.tag +
+        '", "error_type": "vehicle_disconnected"}',
+    );
     broadcastMessage(message);
   }
   res.status(200).json({ status: "ok" });
 });
-
 
 app.post("/", (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
@@ -50,7 +64,6 @@ app.ws("/streaming/", (ws /*, req*/) => {
 
   /** Subscribe to vehicle streaming data */
   ws.on("message", function incoming(message) {
-    
     const js = JSON.parse(message);
     if (js.msg_type == "data:subscribe_oauth") {
       console.log("Subscribe from: %s", js.tag);
@@ -79,11 +92,10 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
- * @param {*} data 
- * @returns 
+ * @param {*} data
+ * @returns
  */
 function transformMessage(data) {
   try {
@@ -102,17 +114,19 @@ function transformMessage(data) {
     });
 
     /** Prepare message for TeslaMate */
-    let power = '';
+    let power = "";
     let isCharging = false;
     if (associativeArray["Gear"]) {
-      power = 0;  // wait for https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+      power = 0; // TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     }
-    if (associativeArray["DCChargingPower"] > 0) {
-      power = parseInt(associativeArray["DCChargingPower"]);
+    let charginPower = parseInt(associativeArray["DCChargingPower"]);
+    if (charginPower < 0) {
+      power = charginPower;
       isCharging = true;
     }
-    if (associativeArray["ACChargingPower"] > 0) {
-      power = parseInt(associativeArray["ACChargingPower"]);
+    charginPower = parseInt(associativeArray["ACChargingPower"]);
+    if (charginPower < 0) {
+      power = charginPower;
       isCharging = true;
     }
 
@@ -121,34 +135,30 @@ function transformMessage(data) {
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        isNaN(parseInt(associativeArray["VehicleSpeed"])) ? '' : parseInt(associativeArray["VehicleSpeed"]), // speed
+        isNaN(parseInt(associativeArray["VehicleSpeed"]))
+          ? ""
+          : parseInt(associativeArray["VehicleSpeed"]), // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
-        '', // elevation (not available)
-        associativeArray["GpsHeading"] ?? '', // est_heading (TODO: is this the good field?)
+        "", // TODO: elevation is not available
+        associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
         power, // power
-        associativeArray["Gear"] ?? '', // 0 shift_state
+        associativeArray["Gear"] ?? "", // 0 shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
-        associativeArray["GpsHeading"] ?? '', // heading
+        associativeArray["GpsHeading"] ?? "", // heading
       ].join(","),
     };
-    
-    //console.log(r);
 
     if (!associativeArray["Gear"] && !isCharging) {
-      return;
-      //console.log(jsonData);
-      //console.log(r);
       return {
-        msg_type: "data:error", 
-        tag: jsonData.vin, 
+        msg_type: "data:error",
+        tag: jsonData.vin,
         error_type: "vehicle_error",
-        value: "Vehicle is offline"
-      }
-      
+        value: "Vehicle is offline",
+      };
     }
 
     return r;
@@ -157,7 +167,7 @@ function transformMessage(data) {
   }
 }
 
-    /**
+/**
  * Forward a message from Tesla Telemetry to the websocket streaming client(s)
  * @param {*} message
  */
