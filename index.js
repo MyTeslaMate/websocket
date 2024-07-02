@@ -40,6 +40,11 @@ app.get("/send", (req, res) => {
     );
     broadcastMessage(message);
   }
+  if (req.query.kick && req.query.tag) {
+    if (tags[req.query.tag]) {
+      tags[req.query.tag].close();
+    }
+  }
   res.status(200).json({ status: "ok" });
 });
 
@@ -85,7 +90,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
       if (this == tags[keys[i]]) {
-        console.log("Close connection from: " + keys[i]);
+        console.log("Close: " + keys[i]);
         delete tags[keys[i]];
       }
     }
@@ -153,12 +158,16 @@ function transformMessage(data) {
     };
 
     if (!associativeArray["Gear"] && !isCharging) {
-      return {
+      if (tags[jsonData.vin]) {
+        tags[jsonData.vin].close();
+      }
+      return;
+      /*return {
         msg_type: "data:error",
         tag: jsonData.vin,
         error_type: "vehicle_error",
         value: "Vehicle is offline",
-      };
+      };*/
     }
 
     return r;
