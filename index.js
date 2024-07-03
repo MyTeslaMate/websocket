@@ -102,12 +102,11 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-const check_id = setInterval(function () {
+setInterval(function () {
   for (let key in tags) {
     // check last event
     if (lastTags[key]) {
       if (tags[key]) {
-        console.log('last event ' + key + ': ' + lastTags[key]);
         if (lastTags[key] < (new Date().getTime() -  2 * 61000)) {
           tags[key].close();
         }
@@ -159,20 +158,7 @@ function transformMessage(data) {
     ? ""
     : parseInt(associativeArray["VehicleSpeed"]);
 
-    let elevation = 0;
-    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
-      const url = 'https://api.open-meteo.com/v1/elevation?latitude=52.52&longitude=13.41';
-      try {
-          const res = request('GET', url);
-          const data = JSON.parse(res.getBody('utf8'));
-          elevation = parseInt(data['elevation'][0]);
-          console.log(data);
-      } catch (error) {
-          console.error('Erreur lors de la requête:', error);
-      }
-    }
-
-    const r = {
+    let r = {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
@@ -180,7 +166,7 @@ function transformMessage(data) {
         speed, // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
-        elevation, // TODO: elevation is not available
+        '', // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
@@ -206,6 +192,18 @@ function transformMessage(data) {
         error_type: "vehicle_error",
         value: "Vehicle is offline",
       };*/
+    }
+
+    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
+      const url = 'https://api.open-meteo.com/v1/elevation?latitude=' + associativeArray["Latitude"] + '&longitude=' + associativeArray["Longitude"];
+      try {
+          const res = request('GET', url);
+          const data = JSON.parse(res.getBody('utf8'));
+          r.elevation = parseInt(data['elevation'][0]);
+          console.log(data);
+      } catch (error) {
+          console.error('Error getting elevation', error);
+      }
     }
 
     return r;
