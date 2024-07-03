@@ -6,6 +6,8 @@ app.use(express.json());
 
 // Save ws associated with each tag
 let tags = {};
+// Save last tag event time
+let lastTags = {};
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -92,10 +94,23 @@ app.ws("/streaming/", (ws /*, req*/) => {
       if (this == tags[keys[i]]) {
         console.log("Close: " + keys[i]);
         delete tags[keys[i]];
+        delete lastTags[keys[i]];
       }
     }
   });
 });
+
+const check_id = setInterval(function () {
+  for (let key in tags) {
+    // check last event
+    if (lastTags[key] && lastTags[key] < (new Date().getTime() -  2 * 61000)) {
+      if (tags[key]) {
+        tags[key].close();
+      }
+    }
+  }
+}, 30000);
+
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
@@ -157,8 +172,10 @@ function transformMessage(data) {
       ].join(","),
     };
 
+    lastTags[jsonData.vin] = new Date().getTime();
+
     if (!associativeArray["Gear"] && !isCharging) {
-      console.log(r);
+      //console.log(r);
       /*if (tags[jsonData.vin]) {
         tags[jsonData.vin].close();
       }*/
