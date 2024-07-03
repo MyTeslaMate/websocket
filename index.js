@@ -172,8 +172,6 @@ function transformMessage(data) {
       }
     }
 
-    https://api.open-meteo.com/v1/elevation?latitude=52.52&longitude=13.41
-
     const r = {
       msg_type: "data:update",
       tag: jsonData.vin,
