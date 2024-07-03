@@ -4,6 +4,8 @@ var app = express();
 require("express-ws")(app);
 app.use(express.json());
 
+const request = require('sync-request');
+
 // Save ws associated with each tag
 let tags = {};
 // Save last tag event time
@@ -153,17 +155,34 @@ function transformMessage(data) {
       isCharging = true;
     }
 
+    let speed = isNaN(parseInt(associativeArray["VehicleSpeed"]))
+    ? ""
+    : parseInt(associativeArray["VehicleSpeed"]);
+
+    let elevation = 0;
+    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
+      const url = 'https://api.open-meteo.com/v1/elevation?latitude=52.52&longitude=13.41';
+      try {
+          const res = request('GET', url);
+          const data = JSON.parse(res.getBody('utf8'));
+          elevation = parseInt(data['elevation'][0]);
+          console.log(data);
+      } catch (error) {
+          console.error('Erreur lors de la requête:', error);
+      }
+    }
+
+    https://api.open-meteo.com/v1/elevation?latitude=52.52&longitude=13.41
+
     const r = {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        isNaN(parseInt(associativeArray["VehicleSpeed"]))
-          ? ""
-          : parseInt(associativeArray["VehicleSpeed"]), // speed
+        speed, // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
-        "", // TODO: elevation is not available
+        elevation, // TODO: elevation is not available
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng

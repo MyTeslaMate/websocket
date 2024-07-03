@@ -16,6 +16,7 @@
   "dependencies": {
     "express": "^4.19.2",
     "express-ws": "^5.0.2",
+    "sync-request": "^6.1.0",
     "ws": "^8.17.0"
   },
   "devDependencies": {
