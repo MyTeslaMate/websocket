@@ -203,7 +203,7 @@ function transformMessage(data) {
         const res = request("GET", url);
         const data = JSON.parse(res.getBody("utf8"));
         r.elevation = parseInt(data["elevation"][0]);
-        console.log(data);
+        console.log(r);
       } catch (error) {
         console.error("Error getting elevation", error);
       }
