@@ -4,7 +4,7 @@ var app = express();
 require("express-ws")(app);
 app.use(express.json());
 
-const request = require('sync-request');
+const request = require("sync-request");
 
 // Save ws associated with each tag
 let tags = {};
@@ -107,14 +107,13 @@ setInterval(function () {
     // check last event
     if (lastTags[key]) {
       if (tags[key]) {
-        if (lastTags[key] < (new Date().getTime() -  2 * 61000)) {
+        if (lastTags[key] < new Date().getTime() - 2 * 61000) {
           tags[key].close();
         }
       }
     }
   }
 }, 60000);
-
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
@@ -155,8 +154,8 @@ function transformMessage(data) {
     }
 
     let speed = isNaN(parseInt(associativeArray["VehicleSpeed"]))
-    ? ""
-    : parseInt(associativeArray["VehicleSpeed"]);
+      ? ""
+      : parseInt(associativeArray["VehicleSpeed"]);
 
     let r = {
       msg_type: "data:update",
@@ -166,7 +165,7 @@ function transformMessage(data) {
         speed, // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
-        '', // elevation is computed next
+        "", // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
@@ -195,14 +194,18 @@ function transformMessage(data) {
     }
 
     if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
-      const url = 'https://api.open-meteo.com/v1/elevation?latitude=' + associativeArray["Latitude"] + '&longitude=' + associativeArray["Longitude"];
+      const url =
+        "https://api.open-meteo.com/v1/elevation?latitude=" +
+        associativeArray["Latitude"] +
+        "&longitude=" +
+        associativeArray["Longitude"];
       try {
-          const res = request('GET', url);
-          const data = JSON.parse(res.getBody('utf8'));
-          r.elevation = parseInt(data['elevation'][0]);
-          console.log(data);
+        const res = request("GET", url);
+        const data = JSON.parse(res.getBody("utf8"));
+        r.elevation = parseInt(data["elevation"][0]);
+        console.log(data);
       } catch (error) {
-          console.error('Error getting elevation', error);
+        console.error("Error getting elevation", error);
       }
     }
 
