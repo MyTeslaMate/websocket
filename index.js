@@ -159,9 +159,9 @@ function transformMessage(data) {
 
     if (!associativeArray["Gear"] && !isCharging) {
       console.log(r);
-      if (tags[jsonData.vin]) {
+      /*if (tags[jsonData.vin]) {
         tags[jsonData.vin].close();
-      }
+      }*/
       return;
       /*return {
         msg_type: "data:error",
