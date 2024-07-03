@@ -103,13 +103,16 @@ app.ws("/streaming/", (ws /*, req*/) => {
 const check_id = setInterval(function () {
   for (let key in tags) {
     // check last event
-    if (lastTags[key] && lastTags[key] < (new Date().getTime() -  2 * 61000)) {
+    if (lastTags[key]) {
       if (tags[key]) {
-        tags[key].close();
+        console.log('last event ' + key + ': ' + lastTags[key]);
+        if (lastTags[key] < (new Date().getTime() -  2 * 61000)) {
+          tags[key].close();
+        }
       }
     }
   }
-}, 30000);
+}, 60000);
 
 
 /**
