@@ -165,7 +165,7 @@ function transformMessage(data) {
         speed, // speed
         associativeArray["Odometer"], // odometer
         parseInt(associativeArray["Soc"]), // soc
-        "", // elevation is computed next
+        "ELEVATION", // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
@@ -202,10 +202,11 @@ function transformMessage(data) {
       try {
         const res = request("GET", url);
         const data = JSON.parse(res.getBody("utf8"));
-        r.elevation = parseInt(data["elevation"][0]);
+        r.value = r.value.replace("ELEVATION", parseInt(data["elevation"][0]));
         console.log(r);
       } catch (error) {
         console.error("Error getting elevation", error);
+        r.value = r.value.replace("ELEVATION", "");
       }
     }
 
