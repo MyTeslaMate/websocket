@@ -142,12 +142,12 @@ function transformMessage(data) {
     let power = 0;
     let isCharging = false;
     
-    let chargingPower = parseInt(associativeArray["DCcharginggPower"]);
+    let chargingPower = parseInt(associativeArray["DCChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
       isCharging = true;
     }
-    chargingPower = parseInt(associativeArray["ACcharginggPower"]);
+    chargingPower = parseInt(associativeArray["ACChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
       isCharging = true;
