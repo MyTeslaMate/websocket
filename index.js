@@ -137,22 +137,20 @@ function transformMessage(data) {
     });
 
     /** Prepare message for TeslaMate */
-    let power = "";
-    let ischargingg = false;
-
-    // TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+    // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     // In the meantime just return 0 
-    power = 0;
-
+    let power = 0;
+    let isCharging = false;
+    
     let chargingPower = parseInt(associativeArray["DCcharginggPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
-      ischargingg = true;
+      isCharging = true;
     }
     chargingPower = parseInt(associativeArray["ACcharginggPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
-      ischargingg = true;
+      isCharging = true;
     }
 
     let speed = isNaN(parseInt(associativeArray["VehicleSpeed"]))
