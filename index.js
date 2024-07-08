@@ -123,7 +123,7 @@ setInterval(function () {
 function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
-    //console.log(jsonData);
+    console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
     const associativeArray = {};
 
     // Extract data from JSON event
@@ -138,19 +138,21 @@ function transformMessage(data) {
 
     /** Prepare message for TeslaMate */
     let power = "";
-    let isCharging = false;
-    if (associativeArray["Gear"]) {
-      power = 0; // TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+    let ischargingg = false;
+
+    // TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
+    // In the meantime just return 0 
+    power = 0;
+
+    let chargingPower = parseInt(associativeArray["DCcharginggPower"]);
+    if (chargingPower > 0) {
+      power = chargingPower;
+      ischargingg = true;
     }
-    let charginPower = parseInt(associativeArray["DCChargingPower"]);
-    if (charginPower < 0) {
-      power = charginPower;
-      isCharging = true;
-    }
-    charginPower = parseInt(associativeArray["ACChargingPower"]);
-    if (charginPower < 0) {
-      power = charginPower;
-      isCharging = true;
+    chargingPower = parseInt(associativeArray["ACcharginggPower"]);
+    if (chargingPower > 0) {
+      power = chargingPower;
+      ischargingg = true;
     }
 
     let speed = isNaN(parseInt(associativeArray["VehicleSpeed"]))
@@ -162,37 +164,24 @@ function transformMessage(data) {
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        speed, // speed
-        associativeArray["Odometer"], // odometer
-        parseInt(associativeArray["Soc"]), // soc
-        "ELEVATION", // elevation is computed next
+        speed,                                // speed
+        associativeArray["Odometer"],         // odometer
+        parseInt(associativeArray["Soc"]),    // soc
+        "ELEVATION",                          // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
-        associativeArray["Latitude"], // est_lat
-        associativeArray["Longitude"], // est_lng
-        power, // power
-        associativeArray["Gear"] ?? "", // 0 shift_state
-        associativeArray["RatedRange"], // range
-        associativeArray["EstBatteryRange"], // est_range
+        associativeArray["Latitude"],         // est_lat
+        associativeArray["Longitude"],        // est_lng
+        power,                                // power
+        associativeArray["Gear"] ?? "",       // shift_state
+        associativeArray["RatedRange"],       // range
+        associativeArray["EstBatteryRange"],  // est_range
         associativeArray["GpsHeading"] ?? "", // heading
       ].join(","),
     };
 
     lastTags[jsonData.vin] = new Date().getTime();
 
-    if (!associativeArray["Gear"] && !isCharging) {
-      //console.log(r);
-      /*if (tags[jsonData.vin]) {
-        tags[jsonData.vin].close();
-      }*/
-      return;
-      /*return {
-        msg_type: "data:error",
-        tag: jsonData.vin,
-        error_type: "vehicle_error",
-        value: "Vehicle is offline",
-      };*/
-    }
-
+  
     if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
       const url =
         "https://api.open-meteo.com/v1/elevation?latitude=" +
@@ -203,7 +192,6 @@ function transformMessage(data) {
         const res = request("GET", url);
         const data = JSON.parse(res.getBody("utf8"));
         r.value = r.value.replace("ELEVATION", parseInt(data["elevation"][0]));
-        console.log(r);
       } catch (error) {
         console.error("Error getting elevation", error);
         r.value = r.value.replace("ELEVATION", "");
