@@ -179,7 +179,6 @@ function transformMessage(data) {
 
     lastTags[jsonData.vin] = new Date().getTime();
 
-  
     if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
       const url =
         "https://api.open-meteo.com/v1/elevation?latitude=" +
@@ -194,7 +193,8 @@ function transformMessage(data) {
         console.error("Error getting elevation", error);
         r.value = r.value.replace("ELEVATION", "");
       }
-     r.value = r.value.replace("ELEVATION", "");
+    } else {
+      r.value = r.value.replace("ELEVATION", "");
     }
 
     return r;
