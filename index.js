@@ -159,6 +159,7 @@ function transformMessage(data) {
       ? ""
       : parseInt(associativeArray["VehicleSpeed"]);
 
+    console.log(associativeArray);
     let r = {
       msg_type: "data:update",
       tag: jsonData.vin,
