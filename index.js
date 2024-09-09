@@ -165,7 +165,7 @@ function transformMessage(data) {
         speed,                                // speed
         associativeArray["Odometer"],         // odometer
         parseInt(associativeArray["Soc"]),    // soc
-        "ELEVATION",                          // elevation is computed next
+        "",                          // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"],         // est_lat
         associativeArray["Longitude"],        // est_lng
@@ -179,7 +179,7 @@ function transformMessage(data) {
 
     lastTags[jsonData.vin] = new Date().getTime();
 
-    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
+    /*if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
       const url =
         "https://api.open-meteo.com/v1/elevation?latitude=" +
         associativeArray["Latitude"] +
@@ -195,7 +195,7 @@ function transformMessage(data) {
       }
     } else {
       r.value = r.value.replace("ELEVATION", "");
-    }
+    }*/
 
     return r;
   } catch (e) {
