@@ -4,7 +4,7 @@ var app = express();
 require("express-ws")(app);
 app.use(express.json());
 
-const request = require("sync-request");
+//const request = require("sync-request");
 
 // Save ws associated with each tag
 let tags = {};
@@ -56,7 +56,9 @@ app.post("/", (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
   let message = transformMessage(data);
-  broadcastMessage(message);
+  if (message) {
+    broadcastMessage(message);
+  }
   res.status(200).json({ status: "ok" });
 });
 
@@ -140,17 +142,17 @@ function transformMessage(data) {
     // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     // In the meantime just return 0 
     let power = 0;
-    let isCharging = false;
+    //let isCharging = false;
     
     let chargingPower = parseInt(associativeArray["DCChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
-      isCharging = true;
+      //isCharging = true;
     }
     chargingPower = parseInt(associativeArray["ACChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
-      isCharging = true;
+      //isCharging = true;
     }
 
     let speed = isNaN(parseInt(associativeArray["VehicleSpeed"]))
@@ -197,7 +199,12 @@ function transformMessage(data) {
       r.value = r.value.replace("ELEVATION", "");
     }*/
 
-    return r;
+    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
+      return r;
+    } else {
+      console.error("no gps data");
+      console.log(JSON.stringify(r));
+    }
   } catch (e) {
     console.error(e);
   }
