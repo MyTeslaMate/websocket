@@ -56,9 +56,9 @@ app.post("/", (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
   let message = transformMessage(data);
-  if (message) {
+  /*if (message) {
     broadcastMessage(message);
-  }
+  }*/
   res.status(200).json({ status: "ok" });
 });
 
