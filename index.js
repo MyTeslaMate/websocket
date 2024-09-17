@@ -128,7 +128,7 @@ function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
     //console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
-    const associativeArray = {};
+    let associativeArray = {};
 
     // Extract data from JSON event
     jsonData.data.forEach((item) => {
