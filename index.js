@@ -106,7 +106,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-setInterval(function () {
+/*setInterval(function () {
   for (let key in tags) {
     // check last event
     if (lastTags[key]) {
@@ -117,7 +117,7 @@ setInterval(function () {
       }
     }
   }
-}, 60000);
+}, 60000);*/
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
