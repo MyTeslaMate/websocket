@@ -10,6 +10,8 @@ app.use(express.json());
 let tags = {};
 // Save last tag event time
 let lastTags = {};
+// Keep last values for each VIN because only changed datas are send since 08/2024
+let lastValues = {};
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -56,9 +58,9 @@ app.post("/", (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
   let message = transformMessage(data);
-  /*if (message) {
+  if (message) {
     broadcastMessage(message);
-  }*/
+  }
   res.status(200).json({ status: "ok" });
 });
 
@@ -137,6 +139,13 @@ function transformMessage(data) {
         associativeArray[item.key] = item.value.stringValue;
       }
     });
+
+    // Save given values in lastValues
+    if (!lastValues[jsonData.vin]) {
+        lastValues[jsonData.vin] = {};
+    }
+    lastValues[jsonData.vin] = {...lastValues[jsonData.vin], ...associativeArray};
+    associativeArray = lastValues[jsonData.vin];
 
     /** Prepare message for TeslaMate */
     // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
