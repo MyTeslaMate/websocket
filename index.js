@@ -212,8 +212,8 @@ function transformMessage(data) {
     if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
       return r;
     } else {
-      console.error("no gps data");
-      console.log(JSON.stringify(r));
+      //console.error("no gps data");
+      //console.log(JSON.stringify(r));
     }
   } catch (e) {
     console.error(e);
