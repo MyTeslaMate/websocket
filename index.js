@@ -176,7 +176,7 @@ function transformMessage(data) {
         new Date(jsonData.createdAt).getTime(),
         speed,                                // speed
         associativeArray["Odometer"],         // odometer
-        parseInt(associativeArray["Soc"]),    // soc
+        associativeArray.hasOwnProperty('Soc') ? parseInt(associativeArray["Soc"]) : "", // soc
         "",                          // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"],         // est_lat
