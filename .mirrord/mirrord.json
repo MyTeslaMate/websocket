@@ -1,0 +1,13 @@
+{
+  "feature": {
+    "env": true,
+    "fs": {
+      "mode": "read"
+    },
+    "network": true
+  },
+  "kubeconfig": "~/.kube/myteslamate-prod.yaml",
+  "target": {
+    "namespace": "myteslamate"
+  }
+}

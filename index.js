@@ -106,7 +106,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-setInterval(function () {
+/*setInterval(function () {
   for (let key in tags) {
     // check last event
     if (lastTags[key]) {
@@ -117,7 +117,7 @@ setInterval(function () {
       }
     }
   }
-}, 60000);
+}, 60000);*/
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
@@ -187,7 +187,7 @@ function transformMessage(data) {
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
         power, // power
-        associativeArray["Gear"] ?? "", // shift_state
+        associativeArray["Gear"] ?? "P", // shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
         associativeArray["GpsHeading"] ?? "", // heading
