@@ -106,18 +106,18 @@ app.ws("/streaming/", (ws /*, req*/) => {
   });
 });
 
-/*setInterval(function () {
+setInterval(function () {
   for (let key in tags) {
     // check last event
     if (lastTags[key]) {
       if (tags[key]) {
-        if (lastTags[key] < new Date().getTime() - 2 * 61000) {
+        if (lastTags[key] < new Date().getTime() - 3 * 61000) {
           tags[key].close();
         }
       }
     }
   }
-}, 60000);*/
+}, 60000);
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
@@ -142,17 +142,20 @@ function transformMessage(data) {
 
     // Save given values in lastValues
     if (!lastValues[jsonData.vin]) {
-        lastValues[jsonData.vin] = {};
+      lastValues[jsonData.vin] = {};
     }
-    lastValues[jsonData.vin] = {...lastValues[jsonData.vin], ...associativeArray};
+    lastValues[jsonData.vin] = {
+      ...lastValues[jsonData.vin],
+      ...associativeArray,
+    };
     associativeArray = lastValues[jsonData.vin];
 
     /** Prepare message for TeslaMate */
     // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
-    // In the meantime just return 0 
+    // In the meantime just return 0
     let power = 0;
     //let isCharging = false;
-    
+
     let chargingPower = parseInt(associativeArray["DCChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
@@ -174,17 +177,19 @@ function transformMessage(data) {
       tag: jsonData.vin,
       value: [
         new Date(jsonData.createdAt).getTime(),
-        speed,                                // speed
-        associativeArray["Odometer"],         // odometer
-        associativeArray.hasOwnProperty('Soc') ? parseInt(associativeArray["Soc"]) : "", // soc
-        "",                          // elevation is computed next
+        speed, // speed
+        associativeArray["Odometer"], // odometer
+        Object.prototype.hasOwnProperty.call(associativeArray, "Soc")
+          ? parseInt(associativeArray["Soc"])
+          : "", // soc
+        "", // elevation is computed next
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
-        associativeArray["Latitude"],         // est_lat
-        associativeArray["Longitude"],        // est_lng
-        power,                                // power
-        associativeArray["Gear"] ?? "",       // shift_state
-        associativeArray["RatedRange"],       // range
-        associativeArray["EstBatteryRange"],  // est_range
+        associativeArray["Latitude"], // est_lat
+        associativeArray["Longitude"], // est_lng
+        power, // power
+        associativeArray["Gear"] ?? "", // shift_state
+        associativeArray["RatedRange"], // range
+        associativeArray["EstBatteryRange"], // est_range
         associativeArray["GpsHeading"] ?? "", // heading
       ].join(","),
     };
