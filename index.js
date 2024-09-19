@@ -187,7 +187,7 @@ function transformMessage(data) {
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
         power, // power
-        associativeArray["Gear"] ?? "P", // shift_state
+        associativeArray["Gear"] ?? "", // shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
         associativeArray["GpsHeading"] ?? "", // heading
@@ -214,7 +214,7 @@ function transformMessage(data) {
       r.value = r.value.replace("ELEVATION", "");
     }*/
 
-    if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
+    if (associativeArray["Latitude"] && associativeArray["Longitude"] && associativeArray["Gear"] && associativeArray["Gear"] != "") {
       return r;
     } else {
       //console.error("no gps data");
