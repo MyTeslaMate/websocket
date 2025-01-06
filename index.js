@@ -12,6 +12,8 @@ let tags = {};
 let lastTags = {};
 // Keep last values for each VIN because only changed datas are send since 08/2024
 let lastValues = {};
+// Reference tags for raw data
+let tagsRaw = {};
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -78,9 +80,12 @@ app.ws("/streaming/", (ws /*, req*/) => {
   /** Subscribe to vehicle streaming data */
   ws.on("message", function incoming(message) {
     const js = JSON.parse(message);
-    if (js.msg_type == "data:subscribe_oauth") {
+    if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
       console.log("Subscribe from: %s", js.tag);
       tags[js.tag] = ws;
+      if (js.msg_type == "data:subscribe_all") {
+        tagsRaw[js.tag] = true;
+      }
 
       ws.send(
         JSON.stringify({
@@ -101,6 +106,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
         console.log("Close: " + keys[i]);
         delete tags[keys[i]];
         delete lastTags[keys[i]];
+        delete tagsRaw[keys[i]];
       }
     }
   });
@@ -127,7 +133,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
 function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
-    //console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
+    console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
     let associativeArray = {};
 
     // Extract data from JSON event
