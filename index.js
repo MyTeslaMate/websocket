@@ -57,6 +57,7 @@ app.get("/send", (req, res) => {
 });
 
 app.post("/", (req, res) => {
+  console.log(req.body.message.data);
   let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
   let message = transformMessage(data);
