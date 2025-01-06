@@ -136,7 +136,7 @@ function transformMessage(data) {
     if (jsonData.vin in tagsRaw) {
       return jsonData;
     }
-    //console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
+    console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
     let associativeArray = {};
 
     // Extract data from JSON event
