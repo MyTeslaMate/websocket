@@ -133,7 +133,10 @@ app.ws("/streaming/", (ws /*, req*/) => {
 function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
-    console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
+    if (jsonData.vin in tagsRaw) {
+      return jsonData;
+    }
+    //console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
     let associativeArray = {};
 
     // Extract data from JSON event
