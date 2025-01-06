@@ -134,7 +134,7 @@ function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
     if (jsonData.vin in tagsRaw) {
-      return jsonData;
+      return {tag:jsonData.vin, raw: jsonData};
     }
     console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
     let associativeArray = {};
@@ -243,7 +243,11 @@ function broadcastMessage(msg) {
     if (msg && msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
       //console.log("Send to client " + msg.tag);
       console.log(JSON.stringify(msg));
-      tags[msg.tag].send(JSON.stringify(msg));
+      if ('raw' in msg) {
+        tags[msg.tag].send(JSON.stringify(msg.raw));
+      } else {
+        tags[msg.tag].send(JSON.stringify(msg));
+      }
     }
   } catch (e) {
     console.error(e);
