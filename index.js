@@ -83,13 +83,15 @@ app.ws("/streaming/", (ws /*, req*/) => {
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
       console.log("Subscribe from: %s", js.tag);
       tags[js.tag] = ws;
+      let msg = "control:hello";
       if (js.msg_type == "data:subscribe_all") {
         tagsRaw[js.tag] = true;
+        msg = "control:hello:" + js.tag;
       }
 
       ws.send(
         JSON.stringify({
-          msg_type: "control:hello",
+          msg_type: msg,
           connection_timeout: 30000,
         }),
       );
