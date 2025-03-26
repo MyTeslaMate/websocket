@@ -15,6 +15,8 @@ let lastTags = {};
 let lastValues = {};
 // Reference tags for raw data
 let tagsRaw = {};
+// Reference valid tokens
+let invalidTokens = {};
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -92,12 +94,16 @@ app.ws("/streaming/", (ws /*, req*/) => {
           if (!js.token || js.token.trim() === "") {
             err = "Token is missing or empty";
             console.error("Error: Token is missing or empty");
+          } else if (invalidTokens[js.tag + js.token]) {
+            err = "Token invalid (already tried)";
+            console.error("Error: Token is invalid (already tried)");
           } else {
             const response = syncRequest(
               "GET",
               `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
             );
             if (response.statusCode != 200) {
+              invalidTokens[js.tag  + js.token] = true;
               err = response.body.toString();
               console.error("Synchronous API call failed with status:", response.body.toString());
             }
