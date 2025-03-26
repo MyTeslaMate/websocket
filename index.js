@@ -89,13 +89,18 @@ app.ws("/streaming/", (ws /*, req*/) => {
       if (js.msg_type == "data:subscribe_all") {
         // check if we allowed him
         try {
-          const response = syncRequest(
-            "GET",
-            `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
-          );
-          if (response.statusCode != 200) {
-            err = response.body.toString();
-            console.error("Synchronous API call failed with status:", response.body.toString());
+          if (!js.token || js.token.trim() === "") {
+            err = "Token is missing or empty";
+            console.error("Error: Token is missing or empty");
+          } else {
+            const response = syncRequest(
+              "GET",
+              `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
+            );
+            if (response.statusCode != 200) {
+              err = response.body.toString();
+              console.error("Synchronous API call failed with status:", response.body.toString());
+            }
           }
         } catch (error) {
           err = error;
