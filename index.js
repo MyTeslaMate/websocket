@@ -1,5 +1,6 @@
 var express = require("express");
 const { WebSocket } = require("ws");
+const syncRequest = require("sync-request");
 var app = express();
 require("express-ws")(app);
 app.use(express.json());
@@ -84,9 +85,36 @@ app.ws("/streaming/", (ws /*, req*/) => {
       console.log("Subscribe from: %s", js.tag);
       tags[js.tag] = ws;
       let msg = "control:hello";
+      let err = null;
       if (js.msg_type == "data:subscribe_all") {
-        tagsRaw[js.tag] = true;
-        msg = "control:hello:" + js.tag;
+        // check if we allowed him
+        try {
+          const response = syncRequest(
+            "GET",
+            `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
+          );
+          if (response.statusCode != 200) {
+            err = response.body.toString();
+            console.error("Synchronous API call failed with status:", response.body.toString());
+          }
+        } catch (error) {
+          err = error;
+          console.error("Error during synchronous API call:", error);
+        }
+
+        if (err) {
+          ws.send(
+            JSON.stringify({
+              msg_type: "error",
+              error_detail: err,
+              connection_timeout: 30000,
+            }),
+          );
+          ws.close();
+        } else {
+          tagsRaw[js.tag] = true;
+          msg = "control:hello:" + js.tag;
+        }
       }
 
       ws.send(
