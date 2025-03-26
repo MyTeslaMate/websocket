@@ -147,7 +147,14 @@ function transformMessage(data) {
         associativeArray["Latitude"] = item.value.locationValue.latitude;
         associativeArray["Longitude"] = item.value.locationValue.longitude;
       } else {
-        associativeArray[item.key] = item.value.stringValue;
+
+        if (item.value.shiftStateValue) {
+          associativeArray[item.key] = item.value.shiftStateValue.replace("ShiftState", "");
+        } else if (item.value.doubleValue) {
+          associativeArray[item.key] = item.value.doubleValue;
+        } else {
+          associativeArray[item.key] = item.value.stringValue;
+        }
       }
     });
 
