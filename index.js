@@ -290,10 +290,10 @@ function broadcastMessage(msg) {
   try {
     if (msg && msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
       //console.log("Send to client " + msg.tag);
-      console.log(JSON.stringify(msg));
       if ('raw' in msg) {
         tags[msg.tag].send(JSON.stringify(msg.raw));
       } else {
+       console.log(JSON.stringify(msg));
         tags[msg.tag].send(JSON.stringify(msg));
       }
     }
