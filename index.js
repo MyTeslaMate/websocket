@@ -83,10 +83,10 @@ app.ws("/streaming/", (ws /*, req*/) => {
   /** Subscribe to vehicle streaming data */
   ws.on("message", function incoming(message) {
     const js = JSON.parse(message);
+    let msg = "control:hello";
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
       console.log("Subscribe from: %s", js.tag);
       tags[js.tag] = ws;
-      let msg = "control:hello";
       let err = null;
       if (js.msg_type == "data:subscribe_all") {
         // check if we allowed him
