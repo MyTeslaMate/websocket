@@ -102,7 +102,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
               "GET",
               `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
             );
-            if (response.statusCode != 200) {
+            if (response.statusCode == 401) {
               invalidTokens[js.tag  + js.token] = true;
               err = response.body.toString();
               console.error("Synchronous API call failed with status:", response.body.toString());
@@ -191,6 +191,8 @@ function transformMessage(data) {
           associativeArray[item.key] = item.value.shiftStateValue.replace("ShiftState", "");
         } else if (item.value.doubleValue) {
           associativeArray[item.key] = item.value.doubleValue;
+        } else if (item.value.intValue) {
+          associativeArray[item.key] = item.value.intValue;
         } else {
           associativeArray[item.key] = item.value.stringValue;
         }
@@ -302,4 +304,4 @@ function broadcastMessage(msg) {
   }
 }
 
-app.listen(8081, () => console.log("listening on http://localhost:8081/"));
+app.listen(8082, () => console.log("listening on http://localhost:8081/"));
