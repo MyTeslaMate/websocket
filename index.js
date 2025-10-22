@@ -85,7 +85,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     const js = JSON.parse(message);
     let msg = "control:hello";
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
-      console.log("Subscribe from: %s", js.tag);
+      console.log("Subscribe from %s %s", js.msg_type, js.tag);
       tags[js.tag] = ws;
       let err = null;
       if (js.msg_type == "data:subscribe_all") {
@@ -293,9 +293,10 @@ function broadcastMessage(msg) {
     if (msg && msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
       //console.log("Send to client " + msg.tag);
       if ('raw' in msg) {
+        console.log(JSON.stringify(msg.raw));
         tags[msg.tag].send(JSON.stringify(msg.raw));
       } else {
-       console.log(JSON.stringify(msg));
+        console.log(JSON.stringify(msg));
         tags[msg.tag].send(JSON.stringify(msg));
       }
     }
