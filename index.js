@@ -85,7 +85,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     const js = JSON.parse(message);
     let msg = "control:hello";
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
-      console.log("Subscribe from %s %s", js.msg_type, js.tag);
+      console.log("Subscribe from %s %s at %s", js.msg_type, js.tag, new Date().toISOString());
       tags[js.tag] = ws;
       let err = null;
       if (js.msg_type == "data:subscribe_all") {
@@ -144,7 +144,7 @@ app.ws("/streaming/", (ws /*, req*/) => {
     let keys = Object.keys(tags);
     for (let i = 0; i < keys.length; i++) {
       if (this == tags[keys[i]]) {
-        console.log("Close: " + keys[i]);
+        console.log("Close: " + keys[i] + " at " + new Date().toISOString());
         delete tags[keys[i]];
         delete lastTags[keys[i]];
         delete tagsRaw[keys[i]];
@@ -297,7 +297,7 @@ function broadcastMessage(msg) {
         tags[msg.tag].send(JSON.stringify(msg.raw));
       } else {
         console.log(JSON.stringify(msg));
-        tags[msg.tag].send(JSON.stringify(msg));
+        //tags[msg.tag].send(JSON.stringify(msg));
       }
     }
   } catch (e) {
