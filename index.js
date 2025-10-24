@@ -296,8 +296,8 @@ function broadcastMessage(msg) {
         console.log(JSON.stringify(msg.raw));
         tags[msg.tag].send(JSON.stringify(msg.raw));
       } else {
-        console.log(JSON.stringify(msg));
-        //tags[msg.tag].send(JSON.stringify(msg));
+        //console.log(JSON.stringify(msg));
+        tags[msg.tag].send(JSON.stringify(msg));
       }
     }
   } catch (e) {
