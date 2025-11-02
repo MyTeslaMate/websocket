@@ -277,6 +277,8 @@ function transformMessage(data) {
       r.value = r.value.replace("ELEVATION", "");
     }*/
 
+      console.log(associativeArray);
+
     if (associativeArray["Latitude"] && associativeArray["Longitude"] && associativeArray["Gear"] && associativeArray["Gear"] != "") {
       return r;
     } else {
