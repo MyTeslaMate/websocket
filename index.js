@@ -212,13 +212,10 @@ function transformMessage(data) {
     /** Prepare message for TeslaMate */
     // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     // In the meantime just return 0
-    /*let power = Object.prototype.hasOwnProperty.call(associativeArray, "EnergyRemaining")
-    ? parseInt(associativeArray["EnergyRemaining"])
-    : 0;*/
-    let power = 0;
+    let power = Object.prototype.hasOwnProperty.call(associativeArray, "Power")
+          ? parseInt(associativeArray["Power"])
+          : 0;
     //let isCharging = false;
-
-    console.log("Power before charging check:", power);
 
     let chargingPower = parseInt(associativeArray["DCChargingPower"]);
     if (chargingPower > 0) {
@@ -235,7 +232,7 @@ function transformMessage(data) {
       ? ""
       : parseInt(associativeArray["VehicleSpeed"]);
 
-    console.log(associativeArray);
+    //console.log(associativeArray);
     let r = {
       msg_type: "data:update",
       tag: jsonData.vin,
