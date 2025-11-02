@@ -217,6 +217,8 @@ function transformMessage(data) {
           : 0;
     //let isCharging = false;
 
+    console.log("Power before charging check:", power);
+
     let chargingPower = parseInt(associativeArray["DCChargingPower"]);
     if (chargingPower > 0) {
       power = chargingPower;
@@ -232,7 +234,7 @@ function transformMessage(data) {
       ? ""
       : parseInt(associativeArray["VehicleSpeed"]);
 
-    //console.log(associativeArray);
+    console.log(associativeArray);
     let r = {
       msg_type: "data:update",
       tag: jsonData.vin,
