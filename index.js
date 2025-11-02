@@ -212,9 +212,10 @@ function transformMessage(data) {
     /** Prepare message for TeslaMate */
     // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
     // In the meantime just return 0
-    let power = Object.prototype.hasOwnProperty.call(associativeArray, "EnergyRemaining")
-          ? parseInt(associativeArray["EnergyRemaining"])
-          : 0;
+    /*let power = Object.prototype.hasOwnProperty.call(associativeArray, "EnergyRemaining")
+    ? parseInt(associativeArray["EnergyRemaining"])
+    : 0;*/
+    let power = 0;
     //let isCharging = false;
 
     console.log("Power before charging check:", power);
@@ -276,8 +277,6 @@ function transformMessage(data) {
     } else {
       r.value = r.value.replace("ELEVATION", "");
     }*/
-
-      console.log(associativeArray);
 
     if (associativeArray["Latitude"] && associativeArray["Longitude"] && associativeArray["Gear"] && associativeArray["Gear"] != "") {
       return r;
