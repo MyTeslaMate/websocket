@@ -295,10 +295,10 @@ function broadcastMessage(msg) {
     if (msg && msg.tag in tags && tags[msg.tag].readyState === WebSocket.OPEN) {
       //console.log("Send to client " + msg.tag);
       if ('raw' in msg) {
-        console.log(JSON.stringify(msg.raw));
+        //console.log(JSON.stringify(msg.raw));
         tags[msg.tag].send(JSON.stringify(msg.raw));
       } else {
-        //console.log(JSON.stringify(msg));
+        console.log(JSON.stringify(msg));
         tags[msg.tag].send(JSON.stringify(msg));
       }
     }
