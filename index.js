@@ -100,12 +100,21 @@ app.ws("/streaming/", (ws /*, req*/) => {
           } else {
             const response = syncRequest(
               "GET",
-              `https://api.myteslamate.com/api/1/vehicles/${js.tag}?token=${js.token}`
+              `https://api.myteslamate.com/api/1/vehicles/${js.tag}/fleet_telemetry_config?token=${js.token}`
             );
             if (response.statusCode == 401) {
-              invalidTokens[js.tag  + js.token] = true;
+              invalidTokens[js.tag + js.token] = true;
               err = response.body.toString();
               console.error("Synchronous API call failed with status:", response.body.toString());
+            } else if (response.statusCode == 200) {
+              const apiResponse = JSON.parse(response.body.toString());
+              if (!apiResponse.response?.synced) {
+                err = "Fleet telemetry is not synced";
+                console.error("Error: Fleet telemetry is not synced");
+              } else if (!apiResponse.response?.config) {
+                err = "No telemetry configuration available";
+                console.error("Error: No telemetry configuration");
+              }
             }
           }
         } catch (error) {
