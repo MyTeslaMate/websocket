@@ -18,6 +18,11 @@ let tagsRaw = {};
 // Reference valid tokens
 let invalidTokens = {};
 
+// When false (default), a token that fails validation on data:subscribe_oauth
+// is still allowed through (migration grace period) so clients that authenticate
+// the old way keep streaming. Set ENFORCE_TOKEN=true to reject invalid tokens.
+const ENFORCE_TOKEN = process.env.ENFORCE_TOKEN === "true";
+
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
@@ -87,41 +92,11 @@ app.ws("/streaming/", (ws /*, req*/) => {
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
       console.log("Subscribe from %s %s at %s", js.msg_type, js.tag, new Date().toISOString());
       tags[js.tag] = ws;
-      let err = null;
-      if (js.msg_type == "data:subscribe_all") {
-        // check if we allowed him
-        try {
-          if (!js.token || js.token.trim() === "") {
-            err = "Token is missing or empty";
-            console.error("Error: Token is missing or empty");
-          } else if (invalidTokens[js.tag + js.token]) {
-            err = "Token invalid (already tried)";
-            console.error("Error: Token is invalid (already tried)");
-          } else {
-            const response = syncRequest(
-              "GET",
-              `https://api.myteslamate.com/api/1/vehicles/${js.tag}/fleet_telemetry_config?token=${js.token}`
-            );
-            if (response.statusCode == 401) {
-              invalidTokens[js.tag + js.token] = true;
-              err = response.body.toString();
-              console.error("Synchronous API call failed with status:", response.body.toString());
-            } else if (response.statusCode == 200) {
-              const apiResponse = JSON.parse(response.body.toString());
-              if (!apiResponse.response?.synced) {
-                err = "Fleet telemetry is not synced";
-                console.error("Error: Fleet telemetry is not synced");
-              } else if (!apiResponse.response?.config) {
-                err = "No telemetry configuration available";
-                console.error("Error: No telemetry configuration");
-              }
-            }
-          }
-        } catch (error) {
-          err = error;
-          console.error("Error during synchronous API call:", error);
-        }
 
+      const err = validateToken(js.tag, js.token);
+
+      if (js.msg_type == "data:subscribe_all") {
+        // Raw passthrough mode: a valid token is mandatory.
         if (err) {
           ws.send(
             JSON.stringify({
@@ -131,10 +106,31 @@ app.ws("/streaming/", (ws /*, req*/) => {
             }),
           );
           ws.close();
-        } else {
-          tagsRaw[js.tag] = true;
-          msg = "control:hello:" + js.tag;
+          return;
         }
+        tagsRaw[js.tag] = true;
+        msg = "control:hello:" + js.tag;
+      } else if (err) {
+        // data:subscribe_oauth (column format).
+        if (ENFORCE_TOKEN) {
+          ws.send(
+            JSON.stringify({
+              msg_type: "error",
+              error_detail: err,
+              connection_timeout: 30000,
+            }),
+          );
+          ws.close();
+          return;
+        }
+        // Migration grace period: token not (yet) valid, but we keep the
+        // connection alive so clients that still authenticate the old way keep
+        // streaming. Set ENFORCE_TOKEN=true once everyone has migrated.
+        console.warn(
+          "subscribe_oauth: token not validated (%s) for tag %s — allowing during migration",
+          err,
+          js.tag,
+        );
       }
 
       ws.send(
@@ -174,6 +170,44 @@ app.ws("/streaming/", (ws /*, req*/) => {
     }
   }
 }, 60000);*/
+
+/**
+ * Validate a streaming token for a given tag (vehicle id) against the fleet API.
+ * @param {string} tag vehicle id
+ * @param {string} token token sent in the subscribe message
+ * @returns {string|null} an error message, or null when the token is valid
+ */
+function validateToken(tag, token) {
+  try {
+    if (!token || token.trim() === "") {
+      return "Token is missing or empty";
+    }
+    if (invalidTokens[tag + token]) {
+      return "Token invalid (already tried)";
+    }
+    const response = syncRequest(
+      "GET",
+      `https://api.myteslamate.com/api/1/vehicles/${tag}/fleet_telemetry_config?token=${token}`,
+    );
+    if (response.statusCode == 401) {
+      invalidTokens[tag + token] = true;
+      return response.body.toString();
+    }
+    if (response.statusCode == 200) {
+      const apiResponse = JSON.parse(response.body.toString());
+      if (!apiResponse.response?.synced) {
+        return "Fleet telemetry is not synced";
+      }
+      if (!apiResponse.response?.config) {
+        return "No telemetry configuration available";
+      }
+    }
+    return null;
+  } catch (error) {
+    console.error("Error during synchronous API call:", error);
+    return String(error);
+  }
+}
 
 /**
  * Transform a message from Tesla Telemetry to a websocket streaming message
