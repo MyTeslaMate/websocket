@@ -1,6 +1,6 @@
 var express = require("express");
 const { WebSocket } = require("ws");
-const syncRequest = require("sync-request");
+const https = require("https");
 var app = express();
 require("express-ws")(app);
 app.use(express.json());
@@ -86,26 +86,34 @@ app.ws("/streaming/", (ws /*, req*/) => {
   }, 10000);
 
   /** Subscribe to vehicle streaming data */
-  ws.on("message", function incoming(message) {
+  ws.on("message", async function incoming(message) {
     const js = JSON.parse(message);
     let msg = "control:hello";
     if (js.msg_type == "data:subscribe_oauth" || js.msg_type == "data:subscribe_all") {
       console.log("Subscribe from %s %s at %s", js.msg_type, js.tag, new Date().toISOString());
       tags[js.tag] = ws;
 
-      const err = validateToken(js.tag, js.token);
+      // Reject the connection with an error detail.
+      const reject = (detail) => {
+        ws.send(
+          JSON.stringify({
+            msg_type: "error",
+            error_detail: detail,
+            connection_timeout: 30000,
+          }),
+        );
+        ws.close();
+      };
+
+      // Validation is async (non-blocking): a slow API call must never freeze
+      // the event loop, otherwise the liveness probe times out and the pod
+      // crashloops. This runs on every subscribe, including subscribe_oauth.
+      const err = await validateToken(js.tag, js.token);
 
       if (js.msg_type == "data:subscribe_all") {
         // Raw passthrough mode: a valid token is mandatory.
         if (err) {
-          ws.send(
-            JSON.stringify({
-              msg_type: "error",
-              error_detail: err,
-              connection_timeout: 30000,
-            }),
-          );
-          ws.close();
+          reject(err);
           return;
         }
         tagsRaw[js.tag] = true;
@@ -113,19 +121,11 @@ app.ws("/streaming/", (ws /*, req*/) => {
       } else if (err) {
         // data:subscribe_oauth (column format).
         if (ENFORCE_TOKEN) {
-          ws.send(
-            JSON.stringify({
-              msg_type: "error",
-              error_detail: err,
-              connection_timeout: 30000,
-            }),
-          );
-          ws.close();
+          reject(err);
           return;
         }
-        // Migration grace period: token not (yet) valid, but we keep the
-        // connection alive so clients that still authenticate the old way keep
-        // streaming. Set ENFORCE_TOKEN=true once everyone has migrated.
+        // Migration grace period: token not (yet) valid, but keep the
+        // connection alive so clients authenticating the old way keep streaming.
         console.warn(
           "subscribe_oauth: token not validated (%s) for tag %s — allowing during migration",
           err,
@@ -172,12 +172,30 @@ app.ws("/streaming/", (ws /*, req*/) => {
 }, 60000);*/
 
 /**
+ * Perform an async HTTPS GET.
+ * @param {string} url
+ * @returns {Promise<{statusCode: number, body: string}>}
+ */
+function httpGet(url) {
+  return new Promise((resolve, reject) => {
+    https
+      .get(url, (res) => {
+        let body = "";
+        res.on("data", (chunk) => (body += chunk));
+        res.on("end", () => resolve({ statusCode: res.statusCode, body }));
+      })
+      .on("error", reject);
+  });
+}
+
+/**
  * Validate a streaming token for a given tag (vehicle id) against the fleet API.
+ * Async so the blocking sync HTTP call no longer freezes the event loop.
  * @param {string} tag vehicle id
  * @param {string} token token sent in the subscribe message
- * @returns {string|null} an error message, or null when the token is valid
+ * @returns {Promise<string|null>} an error message, or null when the token is valid
  */
-function validateToken(tag, token) {
+async function validateToken(tag, token) {
   try {
     if (!token || token.trim() === "") {
       return "Token is missing or empty";
@@ -185,16 +203,15 @@ function validateToken(tag, token) {
     if (invalidTokens[tag + token]) {
       return "Token invalid (already tried)";
     }
-    const response = syncRequest(
-      "GET",
+    const response = await httpGet(
       `https://api.myteslamate.com/api/1/vehicles/${tag}/fleet_telemetry_config?token=${token}`,
     );
     if (response.statusCode == 401) {
       invalidTokens[tag + token] = true;
-      return response.body.toString();
+      return response.body;
     }
     if (response.statusCode == 200) {
-      const apiResponse = JSON.parse(response.body.toString());
+      const apiResponse = JSON.parse(response.body);
       if (!apiResponse.response?.synced) {
         return "Fleet telemetry is not synced";
       }
@@ -204,7 +221,7 @@ function validateToken(tag, token) {
     }
     return null;
   } catch (error) {
-    console.error("Error during synchronous API call:", error);
+    console.error("Error during API call:", error);
     return String(error);
   }
 }
