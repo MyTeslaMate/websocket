@@ -1,0 +1,6 @@
+Forwarder deployed as {{ include "websocket.fullname" . }} (image {{ .Values.image.repository }}:{{ .Values.image.tag }}).
+
+In-cluster endpoint (unchanged for TeslaMate clients):
+    {{ include "websocket.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+Elevation enrichment: OPENTOPODATA_URL={{ .Values.env.OPENTOPODATA_URL | default "(disabled)" }}

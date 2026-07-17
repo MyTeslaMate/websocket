@@ -1,0 +1,9 @@
+apiVersion: v2
+name: websocket
+description: MyTeslaMate Fleet Telemetry -> TeslaMate websocket forwarder (with Open Topo Data elevation enrichment).
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+maintainers:
+  - name: Julien Lestel
+    email: jlestel@gmail.com

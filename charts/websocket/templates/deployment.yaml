@@ -1,34 +1,36 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "opentopodata.fullname" . }}
+  name: {{ include "websocket.fullname" . }}
   labels:
-    {{- include "opentopodata.labels" . | nindent 4 }}
+    {{- include "websocket.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: {{ .Values.strategy }}
   selector:
     matchLabels:
-      {{- include "opentopodata.selectorLabels" . | nindent 6 }}
+      {{- include "websocket.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      annotations:
-        # Roll pods when the dataset config changes.
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
       labels:
-        {{- include "opentopodata.selectorLabels" . | nindent 8 }}
+        {{- include "websocket.selectorLabels" . | nindent 8 }}
     spec:
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      {{- include "opentopodata.affinity" . | nindent 6 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
-        - name: opentopodata
+        - name: node
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           ports:
             - name: http
-              containerPort: 5000
+              containerPort: {{ .Values.containerPort }}
               protocol: TCP
           {{- with .Values.env }}
           env:
@@ -55,19 +57,3 @@ spec:
             failureThreshold: {{ .Values.probes.failureThreshold }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-          volumeMounts:
-            - name: config
-              mountPath: /app/config.yaml
-              subPath: config.yaml
-              readOnly: true
-            - name: tiles
-              mountPath: {{ .Values.data.mountPath }}
-              readOnly: true
-      volumes:
-        - name: config
-          configMap:
-            name: {{ include "opentopodata.fullname" . }}-config
-        - name: tiles
-          persistentVolumeClaim:
-            claimName: {{ include "opentopodata.pvcName" . }}
-            readOnly: true
