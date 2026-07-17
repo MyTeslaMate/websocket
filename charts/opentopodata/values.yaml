@@ -68,7 +68,8 @@ data:
     storageClassName: ""
     accessModes:
       - ReadWriteOnce
-    size: 60Gi
+    # GLO-90 is ~66 GiB on disk; keep headroom above that.
+    size: 80Gi
   # Point at an already-populated claim to skip PVC creation.
   existingClaim: ""
   # Mount path inside the OTD container. Dataset paths are relative to /app,
