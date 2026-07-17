@@ -9,17 +9,10 @@ nameOverride: ""
 fullnameOverride: "opentopodata"
 
 image:
-  # Built from upstream ajnisbet/opentopodata by the "Build Open Topo Data
-  # image" workflow and published to this repo's GHCR.
-  repository: ghcr.io/myteslamate/opentopodata
-  tag: "1.10.0"
+  # Public prebuilt Open Topo Data image.
+  repository: gorenjc11/opentopodata
+  tag: "m1-1.8.3"
   pullPolicy: IfNotPresent
-
-# GHCR packages are private by default. Either make the package public, or
-# create a pull secret and reference it here, e.g.:
-#   imagePullSecrets:
-#     - name: ghcr-pull
-imagePullSecrets: []
 
 replicaCount: 1
 
