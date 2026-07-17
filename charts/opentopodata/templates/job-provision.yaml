@@ -58,9 +58,13 @@ spec:
               python -c "import os,re; s='${STAGING}'; d='${DEST}'; p=re.compile(r'Copernicus_DSM_COG_30_([NS]\d{2})_00_([EW]\d{3})_00_DEM\.tif\$'); n=sum(1 for r,_,fs in os.walk(s) for f in fs for m in [p.search(f)] if m and (os.rename(os.path.join(r,f), os.path.join(d, m.group(1)+m.group(2)+'.tif')) or True)); print('Renamed %d tiles.' % n)"
 
               rm -rf "${STAGING}"
-              count=$(ls "${DEST}"/*.tif 2>/dev/null | wc -l)
-              echo "Provisioned ${count} tiles into ${DEST}."
+              # Write the marker before counting: `ls "${DEST}"/*.tif` glob-expands
+              # 26k args and blows ARG_MAX ("Argument list too long"), which under
+              # `set -e` would fail the job *after* a successful rename. Count with
+              # find (no glob) and only for the log line.
               touch "${MARKER}"
+              count=$(find "${DEST}" -maxdepth 1 -name '*.tif' | wc -l)
+              echo "Provisioned ${count} tiles into ${DEST}."
           resources:
             {{- toYaml .Values.provision.resources | nindent 12 }}
           volumeMounts:
