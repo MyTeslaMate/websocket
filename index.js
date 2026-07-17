@@ -41,7 +41,7 @@ const ELEVATION_CACHE_MAX = parseInt(process.env.OPENTOPODATA_CACHE_MAX || "5000
 // its liveness probe fails, restarting it). keepAlive reuses sockets; excess
 // requests queue in the agent (their per-request timeout only starts once a
 // socket is assigned, so queuing never causes a premature timeout).
-const OPENTOPODATA_MAX_SOCKETS = parseInt(process.env.OPENTOPODATA_MAX_SOCKETS || "6", 10);
+const OPENTOPODATA_MAX_SOCKETS = parseInt(process.env.OPENTOPODATA_MAX_SOCKETS || "3", 10);
 const otdAgents = {
   "http:": new http.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
   "https:": new https.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
