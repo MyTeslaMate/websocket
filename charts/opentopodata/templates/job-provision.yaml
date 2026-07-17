@@ -17,6 +17,7 @@ spec:
         {{- include "opentopodata.selectorLabels" . | nindent 8 }}
     spec:
       restartPolicy: Never
+      {{- include "opentopodata.affinity" . | nindent 6 }}
       containers:
         - name: provision
           image: {{ .Values.provision.image }}

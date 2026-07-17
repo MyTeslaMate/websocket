@@ -16,11 +16,30 @@ image:
   tag: "1.10.2"
   pullPolicy: IfNotPresent
 
-replicaCount: 2
+replicaCount: 1
+
+# Co-locate OTD with the streaming forwarder so the elevation lookup stays
+# node-local. Also keeps a ReadWriteOnce PVC on a single, predictable node.
+# The matchLabels below target the websocket forwarder pods (chart "node",
+# release "websocket").
+colocation:
+  enabled: true
+  matchLabels:
+    app.kubernetes.io/instance: websocket
+    app.kubernetes.io/name: node
+  topologyKey: kubernetes.io/hostname
+  # "required" pins OTD (and the provisioning Job) onto a forwarder node — safe
+  # here since the forwarder is single-replica. "preferred" is best-effort.
+  mode: required
+  weight: 100 # only used when mode=preferred
 
 service:
   type: ClusterIP
   port: 5000
+  # "Local" makes the ClusterIP route only to the OTD pod on the caller's node
+  # (true node-local, no cross-node hop). Requires OTD present on the forwarder
+  # node — pair with colocation.mode=required. Empty = default cluster-wide LB.
+  internalTrafficPolicy: Local
 
 resources:
   requests:
