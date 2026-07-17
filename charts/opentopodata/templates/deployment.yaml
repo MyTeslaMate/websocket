@@ -17,6 +17,10 @@ spec:
       labels:
         {{- include "opentopodata.selectorLabels" . | nindent 8 }}
     spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       {{- include "opentopodata.affinity" . | nindent 6 }}
       containers:
         - name: opentopodata

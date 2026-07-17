@@ -1,0 +1,50 @@
+name: Build Open Topo Data image
+
+# Open Topo Data ships no published image, so we build it from upstream
+# (ajnisbet/opentopodata) and publish to this repo's GitHub Container Registry.
+# Manual trigger — the upstream image only changes on an OTD release.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Upstream Open Topo Data release tag to build
+        default: v1.10.0
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Open Topo Data upstream
+        uses: actions/checkout@v4
+        with:
+          repository: ajnisbet/opentopodata
+          ref: ${{ inputs.version }}
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image tag (strip leading v)
+        id: meta
+        env:
+          VERSION: ${{ inputs.version }}
+        run: echo "tag=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/${{ github.repository_owner }}/opentopodata:${{ steps.meta.outputs.tag }}
+          # Links the GHCR package to this repo (inherits access/visibility).
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}

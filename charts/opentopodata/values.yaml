@@ -9,12 +9,17 @@ nameOverride: ""
 fullnameOverride: "opentopodata"
 
 image:
-  # Open Topo Data has no official published image — build it from
-  # github.com/ajnisbet/opentopodata (docker/Dockerfile) and push to your
-  # registry, then set repository/tag here.
-  repository: opentopodata
-  tag: "1.10.2"
+  # Built from upstream ajnisbet/opentopodata by the "Build Open Topo Data
+  # image" workflow and published to this repo's GHCR.
+  repository: ghcr.io/myteslamate/opentopodata
+  tag: "1.10.0"
   pullPolicy: IfNotPresent
+
+# GHCR packages are private by default. Either make the package public, or
+# create a pull secret and reference it here, e.g.:
+#   imagePullSecrets:
+#     - name: ghcr-pull
+imagePullSecrets: []
 
 replicaCount: 1
 
