@@ -1,6 +1,7 @@
 var express = require("express");
 const { WebSocket } = require("ws");
 const https = require("https");
+const http = require("http");
 var app = express();
 require("express-ws")(app);
 app.use(express.json());
@@ -80,14 +81,11 @@ async function getElevation(lat, lng) {
     const url =
       `${OPENTOPODATA_URL.replace(/\/$/, "")}/v1/${OPENTOPODATA_DATASET}` +
       `?locations=${lat},${lng}`;
-    const res = await fetch(url, {
-      signal: AbortSignal.timeout(OPENTOPODATA_TIMEOUT_MS),
-    });
-    if (!res.ok) {
-      return "";
-    }
-    const body = await res.json();
-    const elevation = body?.results?.[0]?.elevation;
+    // Use the http/https module (not global fetch): the Bitnami node runtime
+    // this runs on has no fetch/AbortSignal.timeout.
+    const body = await fetchJson(url, OPENTOPODATA_TIMEOUT_MS);
+    const elevation =
+      body && body.results && body.results[0] && body.results[0].elevation;
     if (elevation === null || elevation === undefined) {
       return "";
     }
@@ -99,6 +97,34 @@ async function getElevation(lat, lng) {
     console.error("Elevation lookup failed:", String(error));
     return "";
   }
+}
+
+/**
+ * GET a JSON URL with a hard timeout, using the built-in http/https module.
+ * @returns {Promise<object>} parsed JSON body (rejects on non-200/timeout/parse)
+ */
+function fetchJson(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const mod = url.indexOf("https:") === 0 ? https : http;
+    const req = mod.get(url, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error("HTTP " + res.statusCode));
+        return;
+      }
+      let raw = "";
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(raw));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on("error", reject);
+    req.setTimeout(timeoutMs, () => req.destroy(new Error("timeout")));
+  });
 }
 
 app.get("/", (req, res) => {
