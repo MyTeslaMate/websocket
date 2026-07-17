@@ -49,25 +49,16 @@ spec:
                 "{{ .Values.provision.s3Uri }}/" "${STAGING}/"
 
               echo "Renaming tiles into Open Topo Data layout (NxxEyyy.tif) ..."
-              # Pure bash parameter expansion — no per-file subshell (a sed/echo
-              # per file is ~1 file/s over 26k tiles; this is thousands/s).
+              # A bash `mv` per file spawns a process ~26k times (~1 file/s here,
+              # hours total). Do it in ONE python process — os.rename is a pure
+              # syscall, no per-file spawn — which renames all tiles in ~1 s.
               # Copernicus_DSM_COG_30_N50_00_E014_00_DEM.tif -> N50E014.tif
-              count=0
-              while IFS= read -r f; do
-                base="${f##*/}"
-                mid="${base#Copernicus_DSM_COG_30_}"   # N50_00_E014_00_DEM.tif
-                lat="${mid%%_*}"                       # N50
-                rest="${mid#*_00_}"                    # E014_00_DEM.tif
-                lon="${rest%%_*}"                      # E014
-                case "${lat}${lon}" in
-                  [NS][0-9][0-9][EW][0-9][0-9][0-9]) : ;;
-                  *) echo "WARN: unexpected filename, skipping: $base"; continue ;;
-                esac
-                mv -f "$f" "${DEST}/${lat}${lon}.tif"
-                count=$((count + 1))
-              done < <(find "${STAGING}" -name '*_DEM.tif')
+              # DEST already created above by mkdir; keep this py2/py3-compatible
+              # (the aws-cli image ships python 2.7 as `python`).
+              python -c "import os,re; s='${STAGING}'; d='${DEST}'; p=re.compile(r'Copernicus_DSM_COG_30_([NS]\d{2})_00_([EW]\d{3})_00_DEM\.tif\$'); n=sum(1 for r,_,fs in os.walk(s) for f in fs for m in [p.search(f)] if m and (os.rename(os.path.join(r,f), os.path.join(d, m.group(1)+m.group(2)+'.tif')) or True)); print('Renamed %d tiles.' % n)"
 
               rm -rf "${STAGING}"
+              count=$(ls "${DEST}"/*.tif 2>/dev/null | wc -l)
               echo "Provisioned ${count} tiles into ${DEST}."
               touch "${MARKER}"
           resources:
