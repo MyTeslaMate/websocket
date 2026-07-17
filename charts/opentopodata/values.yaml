@@ -1,0 +1,86 @@
+# Open Topo Data — self-hosted elevation API.
+#
+# Worldwide coverage via the Copernicus GLO-90 DEM (~90 m, global to ~85°N/S,
+# so it also covers the >60°N gap that TeslaMate's built-in SRTM backfill
+# misses). The websocket forwarder queries this service to fill the `elevation`
+# slot of each Fleet Telemetry frame (see OPENTOPODATA_URL on the forwarder).
+
+nameOverride: ""
+fullnameOverride: "opentopodata"
+
+image:
+  # Open Topo Data has no official published image — build it from
+  # github.com/ajnisbet/opentopodata (docker/Dockerfile) and push to your
+  # registry, then set repository/tag here.
+  repository: opentopodata
+  tag: "1.10.2"
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  type: ClusterIP
+  port: 5000
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 256Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Probes hit /health, which loads the config + datasets, so a Pod only becomes
+# Ready once the DEM tiles are actually readable on the mounted volume.
+probes:
+  path: /health
+  initialDelaySeconds: 10
+  periodSeconds: 20
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# DEM tiles storage. The tiles are read-only once provisioned; if your
+# StorageClass supports ReadOnlyMany you can mount the same PVC across all
+# replicas. Otherwise keep a single replica, or use a RWX class.
+data:
+  pvc:
+    enabled: true
+    # Leave empty to use the cluster default StorageClass.
+    storageClassName: ""
+    accessModes:
+      - ReadWriteOnce
+    size: 60Gi
+  # Point at an already-populated claim to skip PVC creation.
+  existingClaim: ""
+  # Mount path inside the OTD container. Dataset paths are relative to /app,
+  # so tiles live at <mountPath>/<dataset.name>/.
+  mountPath: /app/data
+
+dataset:
+  # Custom dataset — OTD ships no Copernicus recipe, we provision it ourselves.
+  name: copernicus90
+  filenameEpsg: 4326
+  filenameTileSize: 1
+
+config:
+  maxLocationsPerRequest: 100
+  accessControlAllowOrigin: "*"
+
+# One-shot Job that downloads the GLO-90 tiles from the public AWS bucket and
+# renames them into the NxxEyyy.tif layout Open Topo Data expects. It writes a
+# .provisioned marker so re-runs are no-ops. Disable once the PVC is populated.
+provision:
+  enabled: true
+  image: amazon/aws-cli:2.15.30
+  s3Uri: "s3://copernicus-dem-90m"
+  noSignRequest: true
+  # Parallelism of the aws-cli download.
+  maxConcurrentRequests: 16
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+  backoffLimit: 3

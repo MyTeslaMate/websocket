@@ -1,0 +1,74 @@
+{{- if .Values.provision.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "opentopodata.fullname" . }}-provision
+  labels:
+    {{- include "opentopodata.labels" . | nindent 4 }}
+  annotations:
+    # Let ArgoCD run this as a one-shot before the Deployment is healthy.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: {{ .Values.provision.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "opentopodata.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: provision
+          image: {{ .Values.provision.image }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-eu-central-1}"
+              aws configure set default.s3.max_concurrent_requests {{ .Values.provision.maxConcurrentRequests }}
+
+              DATA_DIR="{{ .Values.data.mountPath }}"
+              DEST="${DATA_DIR}/{{ .Values.dataset.name }}"
+              STAGING="${DATA_DIR}/_staging"
+              MARKER="${DEST}/.provisioned"
+
+              if [ -f "${MARKER}" ]; then
+                echo "Dataset already provisioned at ${DEST} — nothing to do."
+                exit 0
+              fi
+
+              mkdir -p "${DEST}" "${STAGING}"
+
+              echo "Downloading Copernicus GLO-90 tiles from {{ .Values.provision.s3Uri }} ..."
+              aws s3 cp {{ if .Values.provision.noSignRequest }}--no-sign-request {{ end }}--recursive \
+                --exclude "*" --include "*_DEM.tif" \
+                "{{ .Values.provision.s3Uri }}/" "${STAGING}/"
+
+              echo "Renaming tiles into Open Topo Data layout (NxxEyyy.tif) ..."
+              count=0
+              while IFS= read -r f; do
+                base="$(basename "$f")"
+                # Copernicus_DSM_COG_30_N50_00_E014_00_DEM.tif -> N50E014.tif
+                new="$(echo "$base" | sed -E 's/^Copernicus_DSM_COG_30_([NS][0-9]{2})_00_([EW][0-9]{3})_00_DEM\.tif$/\1\2.tif/')"
+                if [ "$new" = "$base" ]; then
+                  echo "WARN: unexpected filename, skipping: $base"
+                  continue
+                fi
+                mv -f "$f" "${DEST}/${new}"
+                count=$((count + 1))
+              done < <(find "${STAGING}" -name '*_DEM.tif')
+
+              rm -rf "${STAGING}"
+              echo "Provisioned ${count} tiles into ${DEST}."
+              touch "${MARKER}"
+          resources:
+            {{- toYaml .Values.provision.resources | nindent 12 }}
+          volumeMounts:
+            - name: tiles
+              mountPath: {{ .Values.data.mountPath }}
+      volumes:
+        - name: tiles
+          persistentVolumeClaim:
+            claimName: {{ include "opentopodata.pvcName" . }}
+{{- end -}}

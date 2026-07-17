@@ -1,0 +1,21 @@
+Open Topo Data deployed as: {{ include "opentopodata.fullname" . }}
+
+In-cluster endpoint (set this as OPENTOPODATA_URL on the websocket forwarder):
+
+    http://{{ include "opentopodata.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+Quick check once the provisioning Job has finished and a Pod is Ready:
+
+    kubectl -n {{ .Release.Namespace }} run otd-test --rm -it --image=curlimages/curl --restart=Never -- \
+      curl -s "http://{{ include "opentopodata.fullname" . }}:{{ .Values.service.port }}/v1/{{ .Values.dataset.name }}?locations=48.0,14.44"
+
+Expected: a JSON body with results[0].elevation set (metres).
+
+Dataset: {{ .Values.dataset.name }} (Copernicus GLO-90, ~90 m, global to ~85°).
+{{- if .Values.provision.enabled }}
+
+The provisioning Job downloads ~26k tiles from {{ .Values.provision.s3Uri }} on
+first sync — this is large and can take a while. It writes a .provisioned
+marker so re-runs are no-ops; set provision.enabled=false once the PVC is
+populated to stop it running on every sync.
+{{- end }}
