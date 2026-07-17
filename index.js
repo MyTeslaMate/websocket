@@ -34,8 +34,18 @@ const ENFORCE_TOKEN = process.env.ENFORCE_TOKEN === "true";
 // miss/timeout/error we forward an empty elevation, exactly like before.
 const OPENTOPODATA_URL = process.env.OPENTOPODATA_URL || "";
 const OPENTOPODATA_DATASET = process.env.OPENTOPODATA_DATASET || "copernicus90";
-const OPENTOPODATA_TIMEOUT_MS = parseInt(process.env.OPENTOPODATA_TIMEOUT_MS || "500", 10);
+const OPENTOPODATA_TIMEOUT_MS = parseInt(process.env.OPENTOPODATA_TIMEOUT_MS || "2000", 10);
 const ELEVATION_CACHE_MAX = parseInt(process.env.OPENTOPODATA_CACHE_MAX || "50000", 10);
+// Bound concurrency to the single OTD instance: without this the forwarder
+// fires an unbounded burst of lookups that overwhelms OTD (queries time out and
+// its liveness probe fails, restarting it). keepAlive reuses sockets; excess
+// requests queue in the agent (their per-request timeout only starts once a
+// socket is assigned, so queuing never causes a premature timeout).
+const OPENTOPODATA_MAX_SOCKETS = parseInt(process.env.OPENTOPODATA_MAX_SOCKETS || "6", 10);
+const otdAgents = {
+  "http:": new http.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
+  "https:": new https.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
+};
 
 // Tiny LRU: a Map preserves insertion order, so deleting+reinserting on a hit
 // and evicting the oldest key keeps the hottest coordinates cached. Keyed on
@@ -105,8 +115,10 @@ async function getElevation(lat, lng) {
  */
 function fetchJson(url, timeoutMs) {
   return new Promise((resolve, reject) => {
-    const mod = url.indexOf("https:") === 0 ? https : http;
-    const req = mod.get(url, (res) => {
+    const isHttps = url.indexOf("https:") === 0;
+    const mod = isHttps ? https : http;
+    const agent = otdAgents[isHttps ? "https:" : "http:"];
+    const req = mod.get(url, { agent }, (res) => {
       if (res.statusCode !== 200) {
         res.resume();
         reject(new Error("HTTP " + res.statusCode));

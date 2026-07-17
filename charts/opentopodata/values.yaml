@@ -41,11 +41,11 @@ service:
 
 resources:
   requests:
-    cpu: 100m
-    memory: 256Mi
+    cpu: 250m
+    memory: 512Mi
   limits:
-    cpu: "1"
-    memory: 1Gi
+    cpu: "2"
+    memory: 2Gi
 
 # Probes hit /health, which loads the config + datasets, so a Pod only becomes
 # Ready once the DEM tiles are actually readable on the mounted volume.
@@ -53,8 +53,10 @@ probes:
   path: /health
   initialDelaySeconds: 10
   periodSeconds: 20
-  timeoutSeconds: 3
-  failureThreshold: 3
+  # Tolerant: /health loads the dataset and can be slow under query load — don't
+  # let transient slowness trip liveness and restart OTD.
+  timeoutSeconds: 10
+  failureThreshold: 5
 
 # DEM tiles storage. The tiles are read-only once provisioned; if your
 # StorageClass supports ReadOnlyMany you can mount the same PVC across all
