@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "opentopodata.fullname" . }}-config
+  labels:
+    {{- include "opentopodata.labels" . | nindent 4 }}
+data:
+  config.yaml: |
+    max_locations_per_request: {{ .Values.config.maxLocationsPerRequest }}
+    access_control_allow_origin: "{{ .Values.config.accessControlAllowOrigin }}"
+    datasets:
+    - name: {{ .Values.dataset.name }}
+      path: data/{{ .Values.dataset.name }}/
+      filename_epsg: {{ .Values.dataset.filenameEpsg }}
+      filename_tile_size: {{ .Values.dataset.filenameTileSize }}

@@ -1,6 +1,7 @@
 var express = require("express");
 const { WebSocket } = require("ws");
 const https = require("https");
+const http = require("http");
 var app = express();
 require("express-ws")(app);
 app.use(express.json());
@@ -22,6 +23,121 @@ let invalidTokens = {};
 // is still allowed through (migration grace period) so clients that authenticate
 // the old way keep streaming. Set ENFORCE_TOKEN=true to reject invalid tokens.
 const ENFORCE_TOKEN = process.env.ENFORCE_TOKEN === "true";
+
+// Elevation enrichment via a self-hosted Open Topo Data instance.
+// Fleet Telemetry carries no elevation, so without this the `elevation` slot of
+// every frame is empty and TeslaMate's SRTM backfill never fills it (it treats
+// streamed drives as already-elevated). When OPENTOPODATA_URL is set we look up
+// elevation from lat/lng and fill the slot ourselves. The lookup is async (it
+// must never block the event loop — a sync HTTP call here would freeze every
+// vehicle and crashloop the pod) and bounded by a short timeout; on
+// miss/timeout/error we forward an empty elevation, exactly like before.
+const OPENTOPODATA_URL = process.env.OPENTOPODATA_URL || "";
+const OPENTOPODATA_DATASET = process.env.OPENTOPODATA_DATASET || "copernicus90";
+const OPENTOPODATA_TIMEOUT_MS = parseInt(process.env.OPENTOPODATA_TIMEOUT_MS || "2000", 10);
+const ELEVATION_CACHE_MAX = parseInt(process.env.OPENTOPODATA_CACHE_MAX || "50000", 10);
+// Bound concurrency to the single OTD instance: without this the forwarder
+// fires an unbounded burst of lookups that overwhelms OTD (queries time out and
+// its liveness probe fails, restarting it). keepAlive reuses sockets; excess
+// requests queue in the agent (their per-request timeout only starts once a
+// socket is assigned, so queuing never causes a premature timeout).
+const OPENTOPODATA_MAX_SOCKETS = parseInt(process.env.OPENTOPODATA_MAX_SOCKETS || "3", 10);
+const otdAgents = {
+  "http:": new http.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
+  "https:": new https.Agent({ keepAlive: true, maxSockets: OPENTOPODATA_MAX_SOCKETS }),
+};
+
+// Tiny LRU: a Map preserves insertion order, so deleting+reinserting on a hit
+// and evicting the oldest key keeps the hottest coordinates cached. Keyed on
+// 4-decimal lat/lng (~11 m) so stationary/charging frames never re-query.
+const elevationCache = new Map();
+
+function elevationCacheGet(key) {
+  if (!elevationCache.has(key)) return undefined;
+  const val = elevationCache.get(key);
+  elevationCache.delete(key);
+  elevationCache.set(key, val);
+  return val;
+}
+
+function elevationCacheSet(key, val) {
+  if (elevationCache.has(key)) elevationCache.delete(key);
+  elevationCache.set(key, val);
+  if (elevationCache.size > ELEVATION_CACHE_MAX) {
+    elevationCache.delete(elevationCache.keys().next().value);
+  }
+}
+
+/**
+ * Look up elevation (metres) for a coordinate from Open Topo Data.
+ * @returns {Promise<number|string>} rounded metres, or "" when disabled/unknown.
+ */
+async function getElevation(lat, lng) {
+  if (
+    !OPENTOPODATA_URL ||
+    lat === undefined ||
+    lat === "" ||
+    lng === undefined ||
+    lng === ""
+  ) {
+    return "";
+  }
+  const key = `${Number(lat).toFixed(4)},${Number(lng).toFixed(4)}`;
+  const cached = elevationCacheGet(key);
+  if (cached !== undefined) {
+    return cached;
+  }
+  try {
+    const url =
+      `${OPENTOPODATA_URL.replace(/\/$/, "")}/v1/${OPENTOPODATA_DATASET}` +
+      `?locations=${lat},${lng}`;
+    // Use the http/https module (not global fetch): the Bitnami node runtime
+    // this runs on has no fetch/AbortSignal.timeout.
+    const body = await fetchJson(url, OPENTOPODATA_TIMEOUT_MS);
+    const elevation =
+      body && body.results && body.results[0] && body.results[0].elevation;
+    if (elevation === null || elevation === undefined) {
+      return "";
+    }
+    const rounded = Math.round(elevation);
+    // Only cache successful lookups, so a transient error never poisons a coord.
+    elevationCacheSet(key, rounded);
+    return rounded;
+  } catch (error) {
+    console.error("Elevation lookup failed:", String(error));
+    return "";
+  }
+}
+
+/**
+ * GET a JSON URL with a hard timeout, using the built-in http/https module.
+ * @returns {Promise<object>} parsed JSON body (rejects on non-200/timeout/parse)
+ */
+function fetchJson(url, timeoutMs) {
+  return new Promise((resolve, reject) => {
+    const isHttps = url.indexOf("https:") === 0;
+    const mod = isHttps ? https : http;
+    const agent = otdAgents[isHttps ? "https:" : "http:"];
+    const req = mod.get(url, { agent }, (res) => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error("HTTP " + res.statusCode));
+        return;
+      }
+      let raw = "";
+      res.on("data", (chunk) => (raw += chunk));
+      res.on("end", () => {
+        try {
+          resolve(JSON.parse(raw));
+        } catch (e) {
+          reject(e);
+        }
+      });
+    });
+    req.on("error", reject);
+    req.setTimeout(timeoutMs, () => req.destroy(new Error("timeout")));
+  });
+}
 
 app.get("/", (req, res) => {
   res.status(200).json({ status: "ok" });
@@ -64,10 +180,10 @@ app.get("/send", (req, res) => {
   res.status(200).json({ status: "ok" });
 });
 
-app.post("/", (req, res) => {
+app.post("/", async (req, res) => {
   let buff = new Buffer.from(req.body.message.data, "base64");
   let data = buff.toString("ascii");
-  let message = transformMessage(data);
+  let message = await transformMessage(data);
   if (message) {
     broadcastMessage(message);
   }
@@ -231,7 +347,7 @@ async function validateToken(tag, token) {
  * @param {*} data
  * @returns
  */
-function transformMessage(data) {
+async function transformMessage(data) {
   try {
     const jsonData = JSON.parse(data);
     //console.log("Reveived POST from pubsub:", JSON.stringify(jsonData,null, "  "));
@@ -292,6 +408,14 @@ function transformMessage(data) {
       ? ""
       : parseInt(associativeArray["VehicleSpeed"]);
 
+    // Fill the elevation slot from Open Topo Data (no-op returning "" unless
+    // OPENTOPODATA_URL is set). Awaiting the local, timeout-bounded lookup adds
+    // at most a few ms per frame and Location only streams every ~25 s.
+    const elevation = await getElevation(
+      associativeArray["Latitude"],
+      associativeArray["Longitude"],
+    );
+
     //console.log(associativeArray);
     let r = {
       msg_type: "data:update",
@@ -303,7 +427,7 @@ function transformMessage(data) {
         Object.prototype.hasOwnProperty.call(associativeArray, "Soc")
           ? parseInt(associativeArray["Soc"])
           : "", // soc
-        "", // elevation is computed next
+        elevation, // elevation (Open Topo Data, "" when disabled/unknown)
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
@@ -316,24 +440,6 @@ function transformMessage(data) {
     };
 
     lastTags[jsonData.vin] = new Date().getTime();
-
-    /*if (associativeArray["Latitude"] && associativeArray["Longitude"]) {
-      const url =
-        "https://api.open-meteo.com/v1/elevation?latitude=" +
-        associativeArray["Latitude"] +
-        "&longitude=" +
-        associativeArray["Longitude"];
-      try {
-        const res = request("GET", url);
-        const data = JSON.parse(res.getBody("utf8"));
-        r.value = r.value.replace("ELEVATION", parseInt(data["elevation"][0]));
-      } catch (error) {
-        console.error("Error getting elevation", error);
-        r.value = r.value.replace("ELEVATION", "");
-      }
-    } else {
-      r.value = r.value.replace("ELEVATION", "");
-    }*/
 
     if (associativeArray["Latitude"] && associativeArray["Longitude"] && associativeArray["Gear"] && associativeArray["Gear"] != "") {
       return r;

@@ -1,0 +1,6 @@
+apiVersion: v2
+name: opentopodata
+description: Self-hosted Open Topo Data elevation API (Copernicus GLO-90) used to enrich the Fleet Telemetry stream with elevation.
+type: application
+version: 0.1.0
+appVersion: "1.10.2"

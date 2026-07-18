@@ -1,0 +1,66 @@
+# Websocket forwarder. Replaces the Bitnami "node" chart (which cloned the repo
+# at runtime) — the code is now baked into an image built in CI.
+#
+# The Deployment and Service keep the exact name (websocket-node) and selector
+# labels of the previous deployment so the in-cluster TeslaMate clients that
+# connect to the `websocket-node` Service keep working, and so switching the
+# ArgoCD app source is an in-place update rather than a create+prune.
+
+# Resource name + selector labels — must match the existing deployment so the
+# Service keeps selecting the pods. Don't change these on a live cutover.
+fullname: websocket-node
+selectorLabels:
+  app.kubernetes.io/instance: websocket
+  app.kubernetes.io/name: node
+
+image:
+  repository: ghcr.io/myteslamate/websocket
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+# GHCR packages are private by default: either make the package public or add a
+# pull secret here, e.g. [{name: ghcr-pull}].
+imagePullSecrets: []
+
+# The forwarder is stateful: for a given VIN the telemetry POST and the
+# TeslaMate websocket must hit the SAME pod (in-memory tags/lastValues), so it
+# cannot be scaled horizontally. Keep one replica.
+replicaCount: 1
+# Recreate (not RollingUpdate): with a single stateful pod, overlapping old+new
+# would misroute frames for a VIN whose POST and ws land on different pods.
+# Clean replace = a few seconds while clients reconnect, deterministic.
+strategy: Recreate
+
+containerPort: 8081
+
+service:
+  port: 80
+
+# Elevation enrichment + tuning (see index.js). Empty OPENTOPODATA_URL disables
+# enrichment (frames go out with empty elevation).
+env:
+  OPENTOPODATA_URL: "http://opentopodata.myteslamate.svc.cluster.local:5000"
+  # OPENTOPODATA_DATASET: "copernicus90"
+  # OPENTOPODATA_MAX_SOCKETS: "3"
+  # OPENTOPODATA_TIMEOUT_MS: "2000"
+  # ENFORCE_TOKEN: "false"
+
+# Co-locate with Open Topo Data (pinned to that node by its local-path PVC) so
+# the elevation lookup stays node-local (Service internalTrafficPolicy: Local).
+nodeSelector:
+  kubernetes.io/hostname: ubuntu-2204-jammy-amd64-base
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: "1"
+    memory: 512Mi
+
+probes:
+  path: /
+  initialDelaySeconds: 5
+  periodSeconds: 15
+  timeoutSeconds: 3
+  failureThreshold: 3

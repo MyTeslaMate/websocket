@@ -1,0 +1,58 @@
+name: Open Topo Data image
+
+# Build Open Topo Data from upstream (ajnisbet/opentopodata), patched for bounded
+# memory, and publish to this repo's GHCR. Manual — OTD changes rarely.
+on:
+  workflow_dispatch:
+    inputs:
+      upstream_ref:
+        description: Upstream Open Topo Data git tag to build
+        default: v1.10.0
+        required: true
+      image_tag:
+        description: Image tag to publish (semver)
+        default: 1.10.0
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out Open Topo Data upstream
+        uses: actions/checkout@v4
+        with:
+          repository: ajnisbet/opentopodata
+          ref: ${{ inputs.upstream_ref }}
+
+      - name: Patch uwsgi for bounded memory (anti-OOM)
+        run: |
+          # Upstream runs uwsgi with --processes = nproc (host core count), so on
+          # a big node each concurrent GDAL tile read multiplies memory until the
+          # container OOMs. Bound the process count (tunable via N_UWSGI_PROCESSES,
+          # default 4) and relax the over-aggressive per-worker reload thresholds.
+          sed -i 's/N_UWSGI_THREADS=$(nproc --all)/N_UWSGI_THREADS=${N_UWSGI_PROCESSES:-4}/' docker/run.sh
+          sed -i 's/^reload-on-rss = .*/reload-on-rss = 1536/' docker/uwsgi.ini
+          sed -i 's/^reload-on-as = .*/reload-on-as = 4096/' docker/uwsgi.ini
+          echo "--- run.sh ---"; grep N_UWSGI docker/run.sh
+          echo "--- uwsgi.ini ---"; grep reload-on docker/uwsgi.ini
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ghcr.io/${{ github.repository_owner }}/opentopodata:${{ inputs.image_tag }}
+          labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}

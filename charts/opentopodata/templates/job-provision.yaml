@@ -1,0 +1,77 @@
+{{- if .Values.provision.enabled -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "opentopodata.fullname" . }}-provision
+  labels:
+    {{- include "opentopodata.labels" . | nindent 4 }}
+  annotations:
+    # Let ArgoCD run this as a one-shot before the Deployment is healthy.
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: {{ .Values.provision.backoffLimit }}
+  template:
+    metadata:
+      labels:
+        {{- include "opentopodata.selectorLabels" . | nindent 8 }}
+    spec:
+      restartPolicy: Never
+      {{- include "opentopodata.affinity" . | nindent 6 }}
+      containers:
+        - name: provision
+          image: {{ .Values.provision.image }}
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -euo pipefail
+              export AWS_DEFAULT_REGION="${AWS_DEFAULT_REGION:-eu-central-1}"
+              aws configure set default.s3.max_concurrent_requests {{ .Values.provision.maxConcurrentRequests }}
+
+              DATA_DIR="{{ .Values.data.mountPath }}"
+              DEST="${DATA_DIR}/{{ .Values.dataset.name }}"
+              STAGING="${DATA_DIR}/_staging"
+              MARKER="${DEST}/.provisioned"
+
+              if [ -f "${MARKER}" ]; then
+                echo "Dataset already provisioned at ${DEST} — nothing to do."
+                exit 0
+              fi
+
+              mkdir -p "${DEST}" "${STAGING}"
+
+              echo "Downloading Copernicus GLO-90 tiles from {{ .Values.provision.s3Uri }} ..."
+              # sync (not cp) so a re-run after a failed/killed pod skips the
+              # ~66 GiB already on the volume instead of re-downloading it.
+              aws s3 sync {{ if .Values.provision.noSignRequest }}--no-sign-request {{ end }}\
+                --exclude "*" --include "*_DEM.tif" \
+                "{{ .Values.provision.s3Uri }}/" "${STAGING}/"
+
+              echo "Renaming tiles into Open Topo Data layout (NxxEyyy.tif) ..."
+              # A bash `mv` per file spawns a process ~26k times (~1 file/s here,
+              # hours total). Do it in ONE python process — os.rename is a pure
+              # syscall, no per-file spawn — which renames all tiles in ~1 s.
+              # Copernicus_DSM_COG_30_N50_00_E014_00_DEM.tif -> N50E014.tif
+              # DEST already created above by mkdir; keep this py2/py3-compatible
+              # (the aws-cli image ships python 2.7 as `python`).
+              python -c "import os,re; s='${STAGING}'; d='${DEST}'; p=re.compile(r'Copernicus_DSM_COG_30_([NS]\d{2})_00_([EW]\d{3})_00_DEM\.tif\$'); n=sum(1 for r,_,fs in os.walk(s) for f in fs for m in [p.search(f)] if m and (os.rename(os.path.join(r,f), os.path.join(d, m.group(1)+m.group(2)+'.tif')) or True)); print('Renamed %d tiles.' % n)"
+
+              rm -rf "${STAGING}"
+              # Write the marker before counting: `ls "${DEST}"/*.tif` glob-expands
+              # 26k args and blows ARG_MAX ("Argument list too long"), which under
+              # `set -e` would fail the job *after* a successful rename. Count with
+              # find (no glob) and only for the log line.
+              touch "${MARKER}"
+              count=$(find "${DEST}" -maxdepth 1 -name '*.tif' | wc -l)
+              echo "Provisioned ${count} tiles into ${DEST}."
+          resources:
+            {{- toYaml .Values.provision.resources | nindent 12 }}
+          volumeMounts:
+            - name: tiles
+              mountPath: {{ .Values.data.mountPath }}
+      volumes:
+        - name: tiles
+          persistentVolumeClaim:
+            claimName: {{ include "opentopodata.pvcName" . }}
+{{- end -}}

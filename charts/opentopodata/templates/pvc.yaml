@@ -1,0 +1,20 @@
+{{- if and .Values.data.pvc.enabled (not .Values.data.existingClaim) -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "opentopodata.pvcName" . }}
+  labels:
+    {{- include "opentopodata.labels" . | nindent 4 }}
+  annotations:
+    # Keep the (slow to repopulate) DEM tiles if the release is uninstalled.
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    {{- toYaml .Values.data.pvc.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.data.pvc.size }}
+  {{- if .Values.data.pvc.storageClassName }}
+  storageClassName: {{ .Values.data.pvc.storageClassName }}
+  {{- end }}
+{{- end -}}
