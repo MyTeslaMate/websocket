@@ -36,6 +36,15 @@ containerPort: 8081
 service:
   port: 80
 
+# Traefik IngressRoute exposing the forwarder ws externally. Replicates the
+# previously-standalone websocket-node-https route so it's now chart-managed.
+ingressRoute:
+  enabled: true
+  host: streaming.myteslamate.com
+  entryPoints:
+    - websecure
+  tlsSecretName: app-tls
+
 # Elevation enrichment + tuning (see index.js). Empty OPENTOPODATA_URL disables
 # enrichment (frames go out with empty elevation).
 env:
