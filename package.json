@@ -14,7 +14,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.19.2",
+    "express": "^5.2.1",
     "express-ws": "^5.0.2",
     "sync-request": "^6.1.0",
     "ws": "^8.17.0"
