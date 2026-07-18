@@ -1,0 +1,21 @@
+{{- if .Values.ingressRoute.enabled }}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: {{ include "websocket.fullname" . }}-https
+  labels:
+    {{- include "websocket.labels" . | nindent 4 }}
+spec:
+  entryPoints:
+    {{- toYaml .Values.ingressRoute.entryPoints | nindent 4 }}
+  routes:
+    - kind: Rule
+      match: Host(`{{ .Values.ingressRoute.host }}`)
+      services:
+        - name: {{ include "websocket.fullname" . }}
+          port: {{ .Values.service.port }}
+  {{- with .Values.ingressRoute.tlsSecretName }}
+  tls:
+    secretName: {{ . }}
+  {{- end }}
+{{- end }}
