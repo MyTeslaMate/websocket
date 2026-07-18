@@ -11,7 +11,7 @@ on:
         required: true
       image_tag:
         description: Image tag to publish (semver)
-        default: 1.10.1-beta1
+        default: 1.10.0-beta1
         required: true
 
 permissions:
@@ -68,3 +68,25 @@ jobs:
           platforms: linux/amd64
           tags: ghcr.io/${{ steps.owner.outputs.name }}/opentopodata:${{ inputs.image_tag }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}
+
+  deploy:
+    # Point the ArgoCD opentopodata app at the freshly built image and sync,
+    # same pattern as the forwarder.
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Deploy image ${{ inputs.image_tag }} to the opentopodata app
+        run: |
+          argocd app set opentopodata --helm-set image.tag="$IMAGE_TAG" \
+            --server "$ARGOCD_URL" --auth-token "$ARGOCD_TOKEN"
+          argocd app sync opentopodata \
+            --server "$ARGOCD_URL" --auth-token "$ARGOCD_TOKEN"
+        env:
+          IMAGE_TAG: ${{ inputs.image_tag }}
+          ARGOCD_URL: ${{ secrets.ARGOCD_URL }}
+          ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
