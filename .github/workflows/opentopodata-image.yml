@@ -40,6 +40,10 @@ jobs:
           echo "--- run.sh ---"; grep N_UWSGI docker/run.sh
           echo "--- uwsgi.ini ---"; grep reload-on docker/uwsgi.ini
 
+      - name: Lowercase owner (GHCR repo names must be lowercase)
+        id: owner
+        run: echo "name=${GITHUB_REPOSITORY_OWNER,,}" >> "$GITHUB_OUTPUT"
+
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
@@ -54,5 +58,5 @@ jobs:
           file: docker/Dockerfile
           push: true
           platforms: linux/amd64
-          tags: ghcr.io/${{ github.repository_owner }}/opentopodata:${{ inputs.image_tag }}
+          tags: ghcr.io/${{ steps.owner.outputs.name }}/opentopodata:${{ inputs.image_tag }}
           labels: org.opencontainers.image.source=https://github.com/${{ github.repository }}

@@ -40,8 +40,11 @@ service:
 # enrichment (frames go out with empty elevation).
 env:
   OPENTOPODATA_URL: "http://opentopodata.myteslamate.svc.cluster.local:5000"
+  # Max concurrent lookups to OTD. The patched OTD image (4 bounded uwsgi
+  # workers) handles ~12 concurrent comfortably, so 6 gives burst headroom
+  # while staying well within its capacity.
+  OPENTOPODATA_MAX_SOCKETS: "6"
   # OPENTOPODATA_DATASET: "copernicus90"
-  # OPENTOPODATA_MAX_SOCKETS: "3"
   # OPENTOPODATA_TIMEOUT_MS: "2000"
   # ENFORCE_TOKEN: "false"
 
