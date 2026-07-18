@@ -11,7 +11,7 @@ on:
         required: true
       image_tag:
         description: Image tag to publish (semver)
-        default: 1.10.0
+        default: 1.10.1-beta1
         required: true
 
 permissions:
@@ -38,15 +38,14 @@ jobs:
           sed -i 's/^reload-on-rss = .*/reload-on-rss = 1536/' docker/uwsgi.ini
           sed -i 's/^reload-on-as = .*/reload-on-as = 4096/' docker/uwsgi.ini
 
-          # Quiet the logs: drop upstream's stray debug prints, disable uwsgi's
-          # per-request logging (keep 4xx/5xx), and turn off nginx access logs.
+          # Quiet the logs: drop upstream's stray debug prints and disable
+          # uwsgi's per-request logging (keep 4xx/5xx). The nginx access log is
+          # intentionally kept.
           sed -i '/print(f"{xs=}")/d; /print(f"{ys=}")/d; /print(f"{tmp=}")/d' opentopodata/backend.py
           printf '\ndisable-logging = true\nlog-4xx = true\nlog-5xx = true\n' >> docker/uwsgi.ini
-          sed -i 's#access_log /dev/stdout;#access_log off;#' docker/nginx.conf
 
           echo "--- run.sh ---"; grep N_UWSGI docker/run.sh
           echo "--- uwsgi.ini ---"; grep -E "reload-on|disable-logging|log-[45]xx" docker/uwsgi.ini
-          echo "--- nginx ---"; grep access_log docker/nginx.conf
           echo "--- backend prints removed ---"; grep -c 'print(f"{' opentopodata/backend.py || true
 
       - name: Lowercase owner (GHCR repo names must be lowercase)

@@ -12,7 +12,7 @@ image:
   # Built from upstream (patched for bounded memory) by the "Open Topo Data
   # image" workflow and published to this repo's GHCR.
   repository: ghcr.io/myteslamate/opentopodata
-  tag: "1.10.1"
+  tag: "1.10.1-beta1"
   pullPolicy: IfNotPresent
 
 # GHCR packages are private by default: make the package public or add a pull
