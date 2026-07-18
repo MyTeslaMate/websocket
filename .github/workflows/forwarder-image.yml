@@ -44,3 +44,26 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    # On a version tag, point the ArgoCD app at the freshly built image and sync.
+    # Master pushes only build the rolling image; they don't deploy.
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install ArgoCD CLI
+        run: |
+          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x /usr/local/bin/argocd
+
+      - name: Deploy image ${{ github.ref_name }} to the websocket app
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          argocd app set websocket --helm-set image.tag="$VERSION" \
+            --server "$ARGOCD_URL" --auth-token "$ARGOCD_TOKEN"
+          argocd app sync websocket \
+            --server "$ARGOCD_URL" --auth-token "$ARGOCD_TOKEN"
+        env:
+          ARGOCD_URL: ${{ secrets.ARGOCD_URL }}
+          ARGOCD_TOKEN: ${{ secrets.ARGOCD_TOKEN }}
