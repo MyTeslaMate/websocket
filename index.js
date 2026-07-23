@@ -19,6 +19,29 @@ let tagsRaw = {};
 // Reference valid tokens
 let invalidTokens = {};
 
+// Per-VIN FIFO. transformMessage awaits a variable-latency elevation lookup, and
+// POSTs are handled concurrently, so without serialisation two frames of the same
+// VIN would interleave around that await — racing on the shared lastValues[vin]
+// object and forwarding out of order.
+const vinQueues = new Map();
+function enqueueByVin(vin, task) {
+  const prev = vinQueues.get(vin) || Promise.resolve();
+  const next = prev.then(task, task);
+  vinQueues.set(vin, next);
+  // Drop the tail once settled so the Map can't grow unbounded.
+  next.finally(() => {
+    if (vinQueues.get(vin) === next) vinQueues.delete(vin);
+  });
+  return next;
+}
+
+// Last createdAt (ms) actually forwarded per VIN. The telemetry pullers run as
+// 6-15 competing PubSub consumers with no message ordering, so a single VIN's
+// consecutive frames can reach us out of createdAt order. We forward only
+// non-decreasing timestamps so TeslaMate never inserts a position behind an
+// earlier one
+let lastForwardedTs = {};
+
 // When false (default), a token that fails validation on data:subscribe_oauth
 // is still allowed through (migration grace period) so clients that authenticate
 // the old way keep streaming. Set ENFORCE_TOKEN=true to reject invalid tokens.
@@ -181,12 +204,23 @@ app.get("/send", (req, res) => {
 });
 
 app.post("/", async (req, res) => {
-  let buff = new Buffer.from(req.body.message.data, "base64");
-  let data = buff.toString("ascii");
-  let message = await transformMessage(data);
-  if (message) {
-    broadcastMessage(message);
+  let data;
+  let vin;
+  try {
+    const buff = new Buffer.from(req.body.message.data, "base64");
+    data = buff.toString("ascii");
+    vin = JSON.parse(data).vin;
+  } catch (e) {
+    console.error("Bad POST body:", String(e));
+    return res.status(200).json({ status: "ok" });
   }
+  // Serialise per VIN so frames of one vehicle transform+forward in arrival order.
+  await enqueueByVin(vin, async () => {
+    const message = await transformMessage(data);
+    if (message) {
+      broadcastMessage(message);
+    }
+  });
   res.status(200).json({ status: "ok" });
 });
 
@@ -354,6 +388,24 @@ async function transformMessage(data) {
     if (jsonData.vin in tagsRaw) {
       return {tag:jsonData.vin, raw: jsonData};
     }
+    const vin = jsonData.vin;
+    const createdAtMs = new Date(jsonData.createdAt).getTime();
+
+    // Monotonic guard: drop a frame older than the last one we forwarded for this VIN.
+    if (
+      Number.isFinite(createdAtMs) &&
+      lastForwardedTs[vin] !== undefined &&
+      createdAtMs < lastForwardedTs[vin]
+    ) {
+      console.log(
+        "skip out-of-order frame vin=%s createdAt=%s < last=%s",
+        vin,
+        jsonData.createdAt,
+        new Date(lastForwardedTs[vin]).toISOString(),
+      );
+      return;
+    }
+
     let associativeArray = {};
 
     // Extract data from JSON event
@@ -383,11 +435,12 @@ async function transformMessage(data) {
       ...lastValues[jsonData.vin],
       ...associativeArray,
     };
-    associativeArray = lastValues[jsonData.vin];
+    // Build the outgoing message from a private snapshot, NOT the shared
+    // lastValues object: nothing processed later may mutate the values this
+    // message forwards while it is suspended on the elevation await below.
+    associativeArray = { ...lastValues[jsonData.vin] };
 
     /** Prepare message for TeslaMate */
-    // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
-    // In the meantime just return 0
     let power = Object.prototype.hasOwnProperty.call(associativeArray, "Power")
           ? parseInt(associativeArray["Power"])
           : 0;
@@ -421,7 +474,7 @@ async function transformMessage(data) {
       msg_type: "data:update",
       tag: jsonData.vin,
       value: [
-        new Date(jsonData.createdAt).getTime(),
+        createdAtMs,
         speed, // speed
         associativeArray["Odometer"], // odometer
         Object.prototype.hasOwnProperty.call(associativeArray, "Soc")
@@ -431,7 +484,7 @@ async function transformMessage(data) {
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
-        power, // power
+        power, // power (computed)
         associativeArray["Gear"] ?? "", // shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
@@ -442,6 +495,11 @@ async function transformMessage(data) {
     lastTags[jsonData.vin] = new Date().getTime();
 
     if (associativeArray["Latitude"] && associativeArray["Longitude"] && associativeArray["Gear"] && associativeArray["Gear"] != "") {
+      // Record the floor only for frames we actually forward, and only when the
+      // timestamp is usable, so the monotonic guard above stays consistent.
+      if (Number.isFinite(createdAtMs)) {
+        lastForwardedTs[vin] = createdAtMs;
+      }
       return r;
     } else {
       //console.error("no gps data");
