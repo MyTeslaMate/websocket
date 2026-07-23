@@ -22,11 +22,7 @@ let invalidTokens = {};
 // Per-VIN FIFO. transformMessage awaits a variable-latency elevation lookup, and
 // POSTs are handled concurrently, so without serialisation two frames of the same
 // VIN would interleave around that await — racing on the shared lastValues[vin]
-// object and forwarding out of order. That drew "GPS jumps back and forth"
-// artifacts in drives (a frame's createdAt stamped onto a neighbour's coordinate).
-// Each VIN's frames now run strictly in arrival order; different VINs stay
-// concurrent. NB: correct only while this forwarder runs as a single replica —
-// scaling it out needs sticky VIN->replica routing (or a shared ordering store).
+// object and forwarding out of order.
 const vinQueues = new Map();
 function enqueueByVin(vin, task) {
   const prev = vinQueues.get(vin) || Promise.resolve();
@@ -43,7 +39,7 @@ function enqueueByVin(vin, task) {
 // 6-15 competing PubSub consumers with no message ordering, so a single VIN's
 // consecutive frames can reach us out of createdAt order. We forward only
 // non-decreasing timestamps so TeslaMate never inserts a position behind an
-// earlier one — which is what draws the backtracking line on the map.
+// earlier one
 let lastForwardedTs = {};
 
 // When false (default), a token that fails validation on data:subscribe_oauth
@@ -395,11 +391,7 @@ async function transformMessage(data) {
     const vin = jsonData.vin;
     const createdAtMs = new Date(jsonData.createdAt).getTime();
 
-    // Monotonic guard: drop a frame older than the last one we forwarded for this
-    // VIN. Competing PubSub consumers deliver a VIN's frames out of createdAt
-    // order; letting an older frame through would regress lastValues (and the
-    // forwarded position) behind a newer one, redrawing the backtrack. Equal
-    // timestamps pass (harmless duplicates). Skipped when createdAt is unparseable.
+    // Monotonic guard: drop a frame older than the last one we forwarded for this VIN.
     if (
       Number.isFinite(createdAtMs) &&
       lastForwardedTs[vin] !== undefined &&
@@ -449,8 +441,6 @@ async function transformMessage(data) {
     associativeArray = { ...lastValues[jsonData.vin] };
 
     /** Prepare message for TeslaMate */
-    // @TODO: wait the real value from https://github.com/teslamotors/fleet-telemetry/issues/170#issuecomment-2141034274)
-    // In the meantime just return 0
     let power = Object.prototype.hasOwnProperty.call(associativeArray, "Power")
           ? parseInt(associativeArray["Power"])
           : 0;
@@ -494,7 +484,7 @@ async function transformMessage(data) {
         associativeArray["GpsHeading"] ?? "", // est_heading (TODO: is this the good field?)
         associativeArray["Latitude"], // est_lat
         associativeArray["Longitude"], // est_lng
-        power, // power
+        power, // power (computed)
         associativeArray["Gear"] ?? "", // shift_state
         associativeArray["RatedRange"], // range
         associativeArray["EstBatteryRange"], // est_range
